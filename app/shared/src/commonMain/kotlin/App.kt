@@ -28,8 +28,7 @@ import com.xmvisio.app.ui.main.VideoScreen
 import com.xmvisio.app.ui.theme.AppTheme
 
 /**
- * KMP + Compose Multiplatform Template
- * 主应用入口 - 复刻 Animeko
+ * XMVISIO 应用入口
  */
 @Composable
 fun App() {

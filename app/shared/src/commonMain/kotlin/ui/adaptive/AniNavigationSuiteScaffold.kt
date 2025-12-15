@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * 自定义 NavigationSuiteScaffold，复刻 Animeko 的样式
+ * 自定义 NavigationSuiteScaffold
  * - 导航栏背景：surfaceContainer
  * - 内容背景：surfaceContainerLowest
  * - 支持 navigationRailHeader（搜索按钮，带 48dp 间距）

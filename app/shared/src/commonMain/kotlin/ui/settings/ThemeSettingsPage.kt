@@ -36,7 +36,6 @@ import com.xmvisio.app.ui.LocalTitleBarInsets
 
 /**
  * 主题设置页面
- * 复刻 Animeko 的 UI 布局风格 + 滚动交互
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,7 +101,7 @@ fun ThemeSettingsPage(
                 )
             }
             
-            // 主题设置组（复刻 Animeko：透明背景，每个 item 独立卡片）
+            // 主题设置组
             SettingsGroupPlain(
                 title = "主题设置"
             ) {
@@ -193,7 +192,6 @@ private fun SettingsGroupPlain(
 
 /**
  * 设置开关项
- * 复刻 Animeko 的 SwitchItem 样式
  * 注意：使用 InteractionSource 防止 Switch 点击时触发 ListItem 的 clickable
  */
 @Composable
@@ -275,7 +273,6 @@ private fun SettingsSwitchItem(
 
 /**
  * 深色模式选择器
- * 复刻 Animeko 的主题预览面板样式
  */
 @Composable
 private fun DarkModeSelector(
@@ -536,7 +533,7 @@ private fun DarkModeOption(
 
 /**
  * 颜色选择器网格
- * 使用 FlowRow 自动换行，完全复刻 Animeko
+ * 使用 FlowRow 自动换行
  */
 @Composable
 private fun ColorPaletteGrid(

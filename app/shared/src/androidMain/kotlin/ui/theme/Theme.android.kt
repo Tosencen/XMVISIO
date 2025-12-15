@@ -47,7 +47,6 @@ actual fun appColorScheme(
 
 /**
  * 应用纯黑背景
- * 复刻 Animeko 的 modifyColorSchemeForBlackBackground
  */
 private fun applyBlackBackground(
     colorScheme: ColorScheme,

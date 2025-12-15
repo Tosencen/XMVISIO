@@ -12,7 +12,6 @@ import com.xmvisio.app.data.ThemeSettings
 
 /**
  * 主题设置 Context
- * 复刻自 Animeko
  */
 val LocalThemeSettings = compositionLocalOf {
     ThemeSettings.Default
@@ -42,7 +41,6 @@ expect fun isPlatformSupportDynamicTheme(): Boolean
 
 /**
  * 应用主题
- * 复刻自 Animeko 的 AniTheme
  */
 @Composable
 fun AppTheme(

@@ -15,7 +15,6 @@ import java.awt.Dimension
 
 /**
  * Desktop 应用入口
- * 窗口尺寸参考 Animeko
  */
 fun main() = application {
     // 设置 macOS 应用名称
@@ -37,7 +36,7 @@ fun main() = application {
         window.background = java.awt.Color.BLACK
         window.contentPane.background = java.awt.Color.BLACK
         
-        // macOS: 设置透明标题栏（复刻 Animeko）
+        // macOS: 设置透明标题栏
         val osName = System.getProperty("os.name").lowercase()
         val isMacOS = osName.contains("mac")
         

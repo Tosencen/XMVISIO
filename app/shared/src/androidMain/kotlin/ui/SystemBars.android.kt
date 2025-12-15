@@ -11,7 +11,6 @@ import androidx.compose.ui.platform.LocalContext
 /**
  * 配置系统栏颜色
  * 适配浅色/深色模式
- * 复刻 Animeko 的实现
  */
 @Composable
 actual fun ConfigureSystemBars(

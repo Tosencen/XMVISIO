@@ -45,7 +45,7 @@ val TestSelfInfoUiState
         SelfInfo(
             id = Uuid.random(),
             nickname = "TestUser",
-            email = "test@animeko.org",
+            email = "test@xmvisio.app",
             hasPassword = false,
             avatarUrl = null,
             bangumiUsername = "TestBangumiUser",
