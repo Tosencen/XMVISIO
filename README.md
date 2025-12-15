@@ -312,7 +312,6 @@ val client = HttpClient {
 - [Kotlin Multiplatform 官方文档](https://kotlinlang.org/docs/multiplatform.html)
 - [Compose Multiplatform 文档](https://www.jetbrains.com/lp/compose-multiplatform/)
 - [Material 3 Design](https://m3.material.io/)
-- [Animeko 源项目](https://github.com/open-ani/animeko)
 
 ## 🤝 贡献
 
@@ -320,7 +319,7 @@ val client = HttpClient {
 
 ## 📄 许可证
 
-基于原项目 [Animeko](https://github.com/open-ani/animeko) 的 GNU AGPLv3 许可证。
+MIT License
 
 ---
 

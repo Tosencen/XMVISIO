@@ -259,7 +259,7 @@ if (enableIos) {
             this.configure<CocoapodsExtension> {
                 version = project.version.toString()
                 summary = project.name
-                homepage = "https://github.com/open-ani/animeko"
+                homepage = "https://github.com/Tosencen/XMVISIO"
                 name = project.name
 
                 ios.deploymentTarget = "16.0"

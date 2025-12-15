@@ -6,7 +6,6 @@ import com.xmvisio.app.data.DefaultSeedColor
 
 /**
  * 基于 HCT 色彩空间生成颜色
- * 完全复刻 Animeko 的实现
  * 
  * HCT 色彩空间参数：
  * - Hue (色相): 0-360，决定颜色类型（红橙黄绿青蓝紫）

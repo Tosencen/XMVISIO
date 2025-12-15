@@ -30,7 +30,6 @@ import com.materialkolor.ktx.toHct
 
 /**
  * 颜色按钮
- * 完整复刻 Animeko 的颜色按钮设计
  */
 @Composable
 fun ColorButton(

@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * 自定义 NavigationSuite，复刻 Animeko 的功能
+ * 自定义 NavigationSuite
  * - 支持 navigationRailHeader（搜索按钮）
  * - 支持 navigationRailFooter（设置按钮）
  * - 支持 navigationRailItemSpacing（按钮间距）
