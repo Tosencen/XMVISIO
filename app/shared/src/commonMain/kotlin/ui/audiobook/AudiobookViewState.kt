@@ -13,7 +13,8 @@ data class AudiobookItemViewState(
     val coverPath: String?,
     val progress: Float,
     val remainingTime: String,
-    val category: BookCategory
+    val category: BookCategory,
+    val isPlaying: Boolean = false
 )
 
 /**
