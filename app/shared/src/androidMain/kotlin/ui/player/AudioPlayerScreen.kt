@@ -52,7 +52,7 @@ fun AudioPlayerScreen(
     // 对话框状态
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
+    var showPlaylistDialog by remember { mutableStateOf(false) }
     
     // 睡眠定时器状态
     var sleepTimerEndTime by remember { mutableStateOf<Long?>(null) }
@@ -138,41 +138,6 @@ fun AudioPlayerScreen(
                         Icon(Icons.Default.ArrowBack, "返回")
                     }
                 },
-                actions = {
-                    // 菜单按钮
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, "菜单")
-                        }
-                        
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("播放速度") },
-                                onClick = {
-                                    showMenu = false
-                                    showSpeedDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Speed, null)
-                                }
-                            )
-                            
-                            DropdownMenuItem(
-                                text = { Text("睡眠定时器") },
-                                onClick = {
-                                    showMenu = false
-                                    showSleepTimerDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Timer, null)
-                                }
-                            )
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
                 )
@@ -188,20 +153,9 @@ fun AudioPlayerScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // 睡眠定时器指示器
-            sleepTimerRemaining?.let { remaining ->
-                SleepTimerIndicator(
-                    remainingTime = remaining,
-                    onCancel = {
-                        sleepTimerEndTime = null
-                        sleepTimerRemaining = null
-                    },
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
-            
-            // 封面占位
+            // 封面占位（点击显示播放列表）
             Surface(
+                onClick = { showPlaylistDialog = true },
                 modifier = Modifier
                     .size(280.dp)
                     .padding(bottom = 48.dp),
@@ -220,13 +174,17 @@ fun AudioPlayerScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // 进度条
+            // 进度条（带播放速度和睡眠定时器按钮）
             ProgressSlider(
                 currentPosition = currentPosition,
                 duration = duration,
+                playbackSpeed = playbackSpeed,
+                sleepTimerRemaining = sleepTimerRemaining,
                 onSeek = { position ->
                     audioPlayer.seekTo(position)
-                }
+                },
+                onSpeedClick = { showSpeedDialog = true },
+                onTimerClick = { showSleepTimerDialog = true }
             )
             
             Spacer(modifier = Modifier.height(48.dp))
@@ -267,19 +225,93 @@ fun AudioPlayerScreen(
             onDismiss = { showSleepTimerDialog = false }
         )
     }
+    
+    // 播放列表对话框
+    if (showPlaylistDialog) {
+        PlaylistDialog(
+            currentAudio = audio,
+            onAudioSelect = { selectedAudio ->
+                // 切换到选中的音频
+                scope.launch {
+                    audioPlayer.prepare(
+                        uri = selectedAudio.uri,
+                        audioId = selectedAudio.id,
+                        onPrepared = {
+                            audioPlayer.play()
+                        },
+                        onError = { error ->
+                            println("播放器错误: ${error.message}")
+                        }
+                    )
+                }
+            },
+            onDismiss = { showPlaylistDialog = false }
+        )
+    }
 }
 
 /**
- * 进度条组件
+ * 进度条组件（带播放速度和睡眠定时器按钮）
  */
 @Composable
 private fun ProgressSlider(
     currentPosition: Duration,
     duration: Duration,
+    playbackSpeed: Float,
+    sleepTimerRemaining: Duration?,
     onSeek: (Duration) -> Unit,
+    onSpeedClick: () -> Unit,
+    onTimerClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
+        // 播放速度和睡眠定时器按钮
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 播放速度按钮
+            TextButton(
+                onClick = onSpeedClick,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    Icons.Default.Speed,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "${playbackSpeed}x",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            
+            // 睡眠定时器按钮
+            TextButton(
+                onClick = onTimerClick,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    Icons.Default.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (sleepTimerRemaining != null) {
+                        formatSleepTimerShort(sleepTimerRemaining)
+                    } else {
+                        "定时"
+                    },
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
         // 进度条
         Slider(
             value = if (duration.inWholeMilliseconds > 0) {
@@ -310,6 +342,21 @@ private fun ProgressSlider(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+/**
+ * 格式化睡眠定时器显示（简短版）
+ */
+private fun formatSleepTimerShort(duration: Duration): String {
+    val totalMinutes = duration.inWholeMinutes
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    
+    return when {
+        hours > 0 && minutes > 0 -> "${hours}h${minutes}m"
+        hours > 0 -> "${hours}h"
+        else -> "${minutes}m"
     }
 }
 

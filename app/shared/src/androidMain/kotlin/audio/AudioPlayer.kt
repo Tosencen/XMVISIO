@@ -36,6 +36,11 @@ class AudioPlayer(private val context: Context) {
     private val positionManager = PlaybackPositionManager(context)
     
     /**
+     * 获取当前播放的音频ID
+     */
+    fun getCurrentAudioId(): Long? = currentAudioId
+    
+    /**
      * 准备播放
      */
     suspend fun prepare(

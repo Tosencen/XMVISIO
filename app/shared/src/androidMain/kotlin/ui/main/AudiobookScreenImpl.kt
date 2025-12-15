@@ -1202,30 +1202,36 @@ private fun AudioItem(
     val positionManager = remember { com.xmvisio.app.audio.PlaybackPositionManager(context) }
     val globalPlayer = remember { com.xmvisio.app.audio.GlobalAudioPlayer.getInstance(context) }
     
-    // 获取播放位置和进度
-    var savedPosition by remember { mutableStateOf(kotlin.time.Duration.ZERO) }
-    var progress by remember { mutableStateOf(0f) }
-    var remainingTime by remember { mutableStateOf("") }
-    
-    // 检查是否正在播放
+    // 检查是否正在播放这个音频
     val isPlaying by globalPlayer.isPlaying.collectAsState()
-    val currentPosition by globalPlayer.currentPosition.collectAsState()
-    val isThisAudioPlaying = isPlaying && currentPosition > kotlin.time.Duration.ZERO
+    val currentPlayingAudioId = globalPlayer.getCurrentAudioId()
+    val isThisAudioPlaying = isPlaying && currentPlayingAudioId == audio.id
     
-    LaunchedEffect(audio.id) {
-        savedPosition = positionManager.getPosition(audio.id)
-        val duration = audio.duration.milliseconds
-        progress = if (duration.inWholeMilliseconds > 0) {
+    // 获取播放位置和进度
+    val savedPosition by produceState(
+        initialValue = kotlin.time.Duration.ZERO,
+        key1 = audio.id,
+        key2 = isThisAudioPlaying
+    ) {
+        value = positionManager.getPosition(audio.id)
+    }
+    
+    val duration = remember(audio.duration) { audio.duration.milliseconds }
+    
+    val progress = remember(savedPosition, duration) {
+        if (duration.inWholeMilliseconds > 0) {
             (savedPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat()).coerceIn(0f, 1f)
         } else {
             0f
         }
-        
+    }
+    
+    val remainingTime = remember(savedPosition, duration) {
         val remaining = duration - savedPosition
         val totalSeconds = remaining.inWholeSeconds
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
-        remainingTime = when {
+        when {
             hours > 0 -> "${hours}小时${minutes}分钟"
             minutes > 0 -> "${minutes}分钟"
             else -> "不到1分钟"
@@ -1240,107 +1246,110 @@ private fun AudioItem(
                 onLongClick = onLongClick
             )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 封面（带播放动画）
-            Box(
-                modifier = Modifier.size(56.dp)
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                // 封面（带播放动画）
+                Box(
+                    modifier = Modifier.size(56.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.AudioFile,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.AudioFile,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    
+                    // 播放动画遮罩
+                    if (isThisAudioPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                                    shape = MaterialTheme.shapes.medium
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            com.xmvisio.app.ui.foundation.PlayingAnimation(
+                                modifier = Modifier.size(28.dp, 20.dp),
+                                color = androidx.compose.ui.graphics.Color.White
+                            )
+                        }
                     }
                 }
                 
-                // 播放动画遮罩
-                if (isThisAudioPlaying) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
-                                shape = MaterialTheme.shapes.medium
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        com.xmvisio.app.ui.foundation.PlayingAnimation(
-                            modifier = Modifier.size(28.dp, 20.dp),
-                            color = androidx.compose.ui.graphics.Color.White
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                // 信息
+                Column(modifier = Modifier.weight(1f)) {
+                    // 标题（只有正在播放时才有跑马灯效果）
+                    Text(
+                        text = audio.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (isThisAudioPlaying) Modifier.basicMarquee() else Modifier
+                    )
+                    
+                    // 艺术家（只有正在播放时才有跑马灯效果）
+                    if (audio.artist != null) {
+                        Text(
+                            text = audio.artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = if (isThisAudioPlaying) Modifier.basicMarquee() else Modifier
                         )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // 剩余时间和进度
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (progress > 0f) remainingTime else formatTime(audio.duration / 1000),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        if (progress > 0f) {
+                            Text(
+                                text = "${(progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // 信息
-            Column(modifier = Modifier.weight(1f)) {
-                // 标题（跑马灯效果）
-                Text(
-                    text = audio.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.basicMarquee()
+            // 进度条在卡片底部
+            if (progress > 0.05f) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(MaterialTheme.shapes.small),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
-                
-                // 艺术家（跑马灯效果）
-                if (audio.artist != null) {
-                    Text(
-                        text = audio.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.basicMarquee()
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // 进度条
-                if (progress > 0.05f) {
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(1.5.dp)),
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-                
-                // 剩余时间和进度
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = if (progress > 0f) remainingTime else formatTime(audio.duration / 1000),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    if (progress > 0f) {
-                        Text(
-                            text = "${(progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         }
     }
