@@ -54,6 +54,26 @@ fun AudioPlayerScreen(
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
     
+    // 获取当前分类的播放列表
+    val categoryManager = remember { com.xmvisio.app.audio.CategoryManager(context) }
+    val audioScanner = remember { com.xmvisio.app.audio.AudioScanner(context) }
+    var playlist by remember { mutableStateOf<List<LocalAudioFile>>(emptyList()) }
+    
+    LaunchedEffect(audio.id) {
+        // 获取当前音频所属的分类
+        val categoryId = categoryManager.getAudioCategory(audio.id)
+        val allAudios = audioScanner.scanAudioFiles()
+        
+        playlist = if (categoryId != null) {
+            // 获取该分类下的所有音频
+            val audioIds = categoryManager.getAudioIdsByCategory(categoryId)
+            allAudios.filter { it.id in audioIds }
+        } else {
+            // 如果没有分类，显示所有音频
+            allAudios
+        }
+    }
+    
     // 睡眠定时器状态
     var sleepTimerEndTime by remember { mutableStateOf<Long?>(null) }
     var sleepTimerRemaining by remember { mutableStateOf<Duration?>(null) }
@@ -226,28 +246,7 @@ fun AudioPlayerScreen(
         )
     }
     
-    // 播放列表对话框
-    if (showPlaylistDialog) {
-        PlaylistDialog(
-            currentAudio = audio,
-            onAudioSelect = { selectedAudio ->
-                // 切换到选中的音频
-                scope.launch {
-                    audioPlayer.prepare(
-                        uri = selectedAudio.uri,
-                        audioId = selectedAudio.id,
-                        onPrepared = {
-                            audioPlayer.play()
-                        },
-                        onError = { error ->
-                            println("播放器错误: ${error.message}")
-                        }
-                    )
-                }
-            },
-            onDismiss = { showPlaylistDialog = false }
-        )
-    }
+    // TODO: 播放列表对话框功能待实现
 }
 
 /**
