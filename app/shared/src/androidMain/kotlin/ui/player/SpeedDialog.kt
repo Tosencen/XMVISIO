@@ -31,7 +31,7 @@ fun SpeedDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 标题
@@ -82,7 +82,7 @@ fun SpeedDialog(
                 }
             }
             
-            // 快捷速度按钮
+            // 快捷速度按钮 - 水平排列，文字水平显示
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -93,11 +93,13 @@ fun SpeedDialog(
                             speed = presetSpeed
                             onSpeedChange(presetSpeed)
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
                     ) {
                         Text(
                             text = if (presetSpeed == 1.0f) "正常" else "${presetSpeed}x",
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1
                         )
                     }
                 }

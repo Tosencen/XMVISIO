@@ -19,7 +19,9 @@ class AudioPlayer(private val context: Context) {
     
     private var mediaPlayer: MediaPlayer? = null
     private var currentUri: Uri? = null
-    private var currentAudioId: Long? = null
+    
+    private val _currentAudioId = MutableStateFlow<Long?>(null)
+    val currentAudioId: StateFlow<Long?> = _currentAudioId.asStateFlow()
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -38,7 +40,7 @@ class AudioPlayer(private val context: Context) {
     /**
      * 获取当前播放的音频ID
      */
-    fun getCurrentAudioId(): Long? = currentAudioId
+    fun getCurrentAudioId(): Long? = _currentAudioId.value
     
     /**
      * 准备播放
@@ -51,7 +53,7 @@ class AudioPlayer(private val context: Context) {
     ) {
         try {
             // 如果正在播放相同的音频，不需要重新准备
-            if (currentAudioId == audioId && currentUri == uri && mediaPlayer != null) {
+            if (_currentAudioId.value == audioId && currentUri == uri && mediaPlayer != null) {
                 onPrepared()
                 return
             }
@@ -59,7 +61,7 @@ class AudioPlayer(private val context: Context) {
             // 停止并释放当前播放器
             release()
             currentUri = uri
-            currentAudioId = audioId
+            _currentAudioId.value = audioId
             
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(context, uri)
@@ -80,7 +82,7 @@ class AudioPlayer(private val context: Context) {
                     _isPlaying.value = false
                     _currentPosition.value = Duration.ZERO
                     // 播放完成后清除保存的位置
-                    currentAudioId?.let { id ->
+                    _currentAudioId.value?.let { id ->
                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                             positionManager.clearPosition(id)
                         }
@@ -184,7 +186,7 @@ class AudioPlayer(private val context: Context) {
                 _currentPosition.value = it.currentPosition.milliseconds
                 
                 // 每次更新位置时保存到本地（每秒保存一次）
-                currentAudioId?.let { id ->
+                _currentAudioId.value?.let { id ->
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         positionManager.savePosition(id, _currentPosition.value)
                     }
@@ -215,7 +217,7 @@ class AudioPlayer(private val context: Context) {
      */
     suspend fun pauseAndSave() {
         pause()
-        currentAudioId?.let { id ->
+        _currentAudioId.value?.let { id ->
             positionManager.savePosition(id, _currentPosition.value)
         }
     }
@@ -225,7 +227,7 @@ class AudioPlayer(private val context: Context) {
      */
     fun release() {
         // 保存当前位置
-        currentAudioId?.let { id ->
+        _currentAudioId.value?.let { id ->
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 positionManager.savePosition(id, _currentPosition.value)
             }
@@ -234,7 +236,7 @@ class AudioPlayer(private val context: Context) {
         mediaPlayer?.release()
         mediaPlayer = null
         currentUri = null
-        currentAudioId = null
+        _currentAudioId.value = null
         _isPlaying.value = false
         _currentPosition.value = Duration.ZERO
         _duration.value = Duration.ZERO
