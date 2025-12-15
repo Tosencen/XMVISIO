@@ -4,12 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -25,6 +27,8 @@ fun SleepTimerDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showCustomDialog by remember { mutableStateOf(false) }
+    
     val timerOptions = remember {
         listOf(
             5.minutes to "5分钟",
@@ -37,39 +41,104 @@ fun SleepTimerDialog(
         )
     }
     
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
+    if (showCustomDialog) {
+        CustomTimerDialog(
+            onConfirm = { duration ->
+                onSetTimer(duration)
+                onDismiss()
+            },
+            onDismiss = { showCustomDialog = false }
+        )
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            modifier = modifier
         ) {
-            // 标题
-            Text(
-                text = "睡眠定时器",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
-            
-            // 定时器选项列表
-            timerOptions.forEach { (duration, label) ->
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        onSetTimer(duration)
-                        onDismiss()
-                    }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                // 标题
+                Text(
+                    text = "睡眠定时器",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                )
+                
+                // 定时器选项列表（使用Text代替ListItem，去掉背景）
+                timerOptions.forEach { (duration, label) ->
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onSetTimer(duration)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 24.dp, vertical = 16.dp)
+                    )
+                }
+                
+                // 自定义时间选项
+                Text(
+                    text = "自定义时间",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showCustomDialog = true
+                        }
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
                 )
             }
         }
     }
+}
+
+/**
+ * 自定义时间对话框
+ */
+@Composable
+private fun CustomTimerDialog(
+    onConfirm: (Duration) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var minutesText by remember { mutableStateOf("") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("自定义时间") },
+        text = {
+            OutlinedTextField(
+                value = minutesText,
+                onValueChange = { minutesText = it.filter { char -> char.isDigit() } },
+                label = { Text("分钟") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val minutes = minutesText.toIntOrNull()
+                    if (minutes != null && minutes > 0) {
+                        onConfirm(minutes.minutes)
+                    }
+                },
+                enabled = minutesText.toIntOrNull()?.let { it > 0 } == true
+            ) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }
 
 /**
