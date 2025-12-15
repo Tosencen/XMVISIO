@@ -16,6 +16,14 @@ android {
         targetSdk = getIntProperty("android.compile.sdk")
         versionCode = getIntProperty("android.version.code")
         versionName = project.version.toString()
+        
+        // GitHub Token (可选，从 local.properties 读取)
+        val githubToken = project.findProperty("github.token") as String? ?: ""
+        buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
+    }
+    
+    buildFeatures {
+        buildConfig = true
     }
     
     buildTypes {
@@ -46,4 +54,7 @@ dependencies {
     
     // JSON 序列化
     implementation(libs.kotlinx.serialization.json)
+    
+    // Lottie 动画
+    implementation("com.airbnb.android:lottie-compose:6.1.0")
 }
