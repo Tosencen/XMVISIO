@@ -45,6 +45,13 @@ class AudioPlayer(private val context: Context) {
         onError: (Exception) -> Unit = {}
     ) {
         try {
+            // 如果正在播放相同的音频，不需要重新准备
+            if (currentAudioId == audioId && currentUri == uri && mediaPlayer != null) {
+                onPrepared()
+                return
+            }
+            
+            // 停止并释放当前播放器
             release()
             currentUri = uri
             currentAudioId = audioId

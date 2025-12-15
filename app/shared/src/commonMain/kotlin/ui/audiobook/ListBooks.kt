@@ -1,7 +1,9 @@
 package com.xmvisio.app.ui.audiobook
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,10 +14,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.xmvisio.app.data.audiobook.AudiobookId
 import com.xmvisio.app.data.audiobook.BookCategory
+import com.xmvisio.app.ui.foundation.PlayingAnimation
 
 /**
  * 列表模式显示有声书
@@ -118,11 +122,33 @@ private fun ListBookRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 封面
-            BookCover(
-                coverPath = book.coverPath,
+            // 封面（带播放动画）
+            Box(
                 modifier = Modifier.size(80.dp)
-            )
+            ) {
+                BookCover(
+                    coverPath = book.coverPath,
+                    modifier = Modifier.fillMaxSize()
+                )
+                
+                // 播放动画遮罩
+                if (book.isPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Color.Black.copy(alpha = 0.5f),
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PlayingAnimation(
+                            modifier = Modifier.size(32.dp, 24.dp),
+                            color = Color.White
+                        )
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.width(12.dp))
             
@@ -130,24 +156,26 @@ private fun ListBookRow(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // 作者
+                // 作者（跑马灯效果）
                 if (book.author != null) {
                     Text(
                         text = book.author.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.basicMarquee()
                     )
                 }
                 
-                // 书名
+                // 书名（跑马灯效果）
                 Text(
                     text = book.name,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.basicMarquee()
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))

@@ -2,6 +2,8 @@ package com.xmvisio.app.ui.player
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.xmvisio.app.audio.AudioPlayer
+import com.xmvisio.app.audio.GlobalAudioPlayer
 import com.xmvisio.app.audio.LocalAudioFile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -23,7 +26,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * 音频播放器界面
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AudioPlayerScreen(
     audio: LocalAudioFile,
@@ -33,8 +36,8 @@ fun AudioPlayerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    // 播放器实例
-    val audioPlayer = remember { AudioPlayer(context) }
+    // 使用全局单例播放器实例
+    val audioPlayer: AudioPlayer = remember { GlobalAudioPlayer.getInstance(context) }
     
     // 播放状态
     val isPlaying by audioPlayer.isPlaying.collectAsState()
@@ -115,7 +118,8 @@ fun AudioPlayerScreen(
                         Text(
                             text = audio.title,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.basicMarquee()
                         )
                         if (audio.artist != null) {
                             Text(
@@ -123,7 +127,8 @@ fun AudioPlayerScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.basicMarquee()
                             )
                         }
                     }
