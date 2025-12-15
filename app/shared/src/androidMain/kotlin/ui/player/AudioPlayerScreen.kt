@@ -39,6 +39,9 @@ fun AudioPlayerScreen(
     // 使用全局单例播放器实例
     val audioPlayer: AudioPlayer = remember { GlobalAudioPlayer.getInstance(context) }
     
+    // 当前播放的音频（可变状态，用于切换音频时更新UI）
+    var currentAudio by remember { mutableStateOf(audio) }
+    
     // 播放状态
     val isPlaying by audioPlayer.isPlaying.collectAsState()
     val currentPosition by audioPlayer.currentPosition.collectAsState()
@@ -59,9 +62,9 @@ fun AudioPlayerScreen(
     val audioScanner = remember { com.xmvisio.app.audio.AudioScanner(context) }
     var playlist by remember { mutableStateOf<List<LocalAudioFile>>(emptyList()) }
     
-    LaunchedEffect(audio.id) {
+    LaunchedEffect(currentAudio.id) {
         // 获取当前音频所属的分类
-        val categoryId = categoryManager.getAudioCategory(audio.id)
+        val categoryId = categoryManager.getAudioCategory(currentAudio.id)
         val allAudios = audioScanner.scanAudioFiles()
         
         playlist = if (categoryId != null) {
@@ -79,10 +82,10 @@ fun AudioPlayerScreen(
     var sleepTimerRemaining by remember { mutableStateOf<Duration?>(null) }
     
     // 准备播放器
-    LaunchedEffect(audio.id) {
+    LaunchedEffect(currentAudio.id) {
         audioPlayer.prepare(
-            uri = audio.uri,
-            audioId = audio.id,
+            uri = currentAudio.uri,
+            audioId = currentAudio.id,
             onPrepared = {
                 // 准备完成后可以自动播放
                 audioPlayer.play()
@@ -136,14 +139,14 @@ fun AudioPlayerScreen(
                 title = {
                     Column {
                         Text(
-                            text = audio.title,
+                            text = currentAudio.title,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.basicMarquee()
                         )
-                        if (audio.artist != null) {
+                        currentAudio.artist?.let { artist ->
                             Text(
-                                text = audio.artist,
+                                text = artist,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -246,7 +249,30 @@ fun AudioPlayerScreen(
         )
     }
     
-    // TODO: 播放列表对话框功能待实现
+    // 播放列表对话框
+    if (showPlaylistDialog) {
+        PlaylistDialog(
+            playlist = playlist,
+            currentAudioId = currentAudio.id,
+            isPlaying = isPlaying,
+            onAudioClick = { selectedAudio: LocalAudioFile ->
+                scope.launch {
+                    currentAudio = selectedAudio
+                    audioPlayer.prepare(
+                        uri = selectedAudio.uri,
+                        audioId = selectedAudio.id,
+                        onPrepared = {
+                            audioPlayer.play()
+                        },
+                        onError = { error ->
+                            println("播放器错误: ${error.message}")
+                        }
+                    )
+                }
+            },
+            onDismiss = { showPlaylistDialog = false }
+        )
+    }
 }
 
 /**
@@ -271,40 +297,40 @@ private fun ProgressSlider(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 播放速度按钮
-            TextButton(
+            FilledTonalButton(
                 onClick = onSpeedClick,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Icon(
                     Icons.Default.Speed,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "${playbackSpeed}x",
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
             
             // 睡眠定时器按钮
-            TextButton(
+            FilledTonalButton(
                 onClick = onTimerClick,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Icon(
                     Icons.Default.Timer,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = if (sleepTimerRemaining != null) {
                         formatSleepTimerShort(sleepTimerRemaining)
                     } else {
                         "定时"
                     },
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
@@ -345,17 +371,17 @@ private fun ProgressSlider(
 }
 
 /**
- * 格式化睡眠定时器显示（简短版）
+ * 格式化睡眠定时器显示（精确到秒）
  */
 private fun formatSleepTimerShort(duration: Duration): String {
-    val totalMinutes = duration.inWholeMinutes
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
+    val totalSeconds = duration.inWholeSeconds
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
     
     return when {
-        hours > 0 && minutes > 0 -> "${hours}h${minutes}m"
-        hours > 0 -> "${hours}h"
-        else -> "${minutes}m"
+        hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, seconds)
+        else -> String.format("%d:%02d", minutes, seconds)
     }
 }
 
