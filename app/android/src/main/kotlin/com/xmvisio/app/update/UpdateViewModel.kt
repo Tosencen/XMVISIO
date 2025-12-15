@@ -19,8 +19,8 @@ import java.io.IOException
 class UpdateViewModel(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
-    // GitHub Token（可选）
-    private val githubToken: String? = null  // 如需配置，从 BuildConfig 读取
+    // GitHub Token（可选，从 BuildConfig 读取）
+    private val githubToken: String? = com.xmvisio.app.BuildConfig.GITHUB_TOKEN.takeIf { it.isNotBlank() }
     
     private val updateChecker = UpdateChecker(githubToken = githubToken)
     private val fileDownloader = FileDownloader()

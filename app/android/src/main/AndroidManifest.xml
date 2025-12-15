@@ -8,6 +8,11 @@
     <!-- 安装权限 (Android 8.0+) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
+    <!-- 音频权限 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

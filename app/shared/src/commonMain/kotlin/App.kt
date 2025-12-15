@@ -48,10 +48,14 @@ fun App() {
         
         val navController = rememberNavController()
         
-        NavHost(
-            navController = navController,
-            startDestination = "main"
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surfaceContainerLowest
         ) {
+            NavHost(
+                navController = navController,
+                startDestination = "main"
+            ) {
             composable("main") {
                 MainScreen(
                     onNavigateToSettings = { navController.navigate("settings") }
@@ -69,6 +73,7 @@ fun App() {
                     onThemeChange = { themeSettings = it },
                     onBack = { navController.popBackStack() }
                 )
+            }
             }
         }
     }
