@@ -92,7 +92,20 @@ fun MainScreen(
     // 使用 rememberSaveable 保存选中的 tab，避免从设置页返回时状态丢失
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.AUDIOBOOK) }
     
-    AniNavigationSuiteScaffold(
+    var showPlayer by rememberSaveable { mutableStateOf(false) }
+    var audioToPlay by remember { mutableStateOf<Any?>(null) }
+    
+    if (showPlayer && audioToPlay != null) {
+        // 播放器全屏显示（Android平台）
+        com.xmvisio.app.ui.player.AudioPlayerScreenWrapper(
+            audio = audioToPlay!!,
+            onClose = {
+                showPlayer = false
+                audioToPlay = null
+            }
+        )
+    } else {
+        AniNavigationSuiteScaffold(
         navigationSuiteItems = {
             MainTab.entries.forEach { tab ->
                 item(
@@ -115,10 +128,16 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         navigationContainerColor = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        when (selectedTab) {
-            MainTab.AUDIOBOOK -> AudiobookScreen()
-            MainTab.VIDEO -> VideoScreen()
-            MainTab.DOWNLOADS -> DownloadsScreen(onNavigateToSettings = onNavigateToSettings)
+            when (selectedTab) {
+                MainTab.AUDIOBOOK -> AudiobookScreen(
+                    onNavigateToPlayer = { audio ->
+                        audioToPlay = audio
+                        showPlayer = true
+                    }
+                )
+                MainTab.VIDEO -> VideoScreen()
+                MainTab.DOWNLOADS -> DownloadsScreen(onNavigateToSettings = onNavigateToSettings)
+            }
         }
     }
 }

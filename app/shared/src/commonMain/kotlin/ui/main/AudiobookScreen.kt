@@ -20,6 +20,7 @@ import com.xmvisio.app.ui.audiobook.*
  */
 @Composable
 expect fun AudiobookScreen(
+    onNavigateToPlayer: (Any) -> Unit = {},
     modifier: Modifier = Modifier
 )
 

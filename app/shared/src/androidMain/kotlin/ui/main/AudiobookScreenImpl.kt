@@ -52,6 +52,7 @@ import com.xmvisio.app.permissions.AudioPermissionManager
 import com.xmvisio.app.permissions.PermissionStatus
 import com.xmvisio.app.ui.audiobook.EmptyState
 import com.xmvisio.app.ui.audiobook.formatTime
+import com.xmvisio.app.ui.player.AudioPlayerScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -61,6 +62,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun AudiobookScreenImpl(
+    onNavigateToPlayer: (LocalAudioFile) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -546,7 +548,9 @@ internal fun AudiobookScreenImpl(
                                     ) { audio ->
                                         AudioItem(
                                             audio = audio,
-                                            onCardClick = { /* TODO: 播放 */ },
+                                            onCardClick = {
+                                                onNavigateToPlayer(audio)
+                                            },
                                             onLongClick = {
                                                 selectedAudio = audio
                                                 showContextMenu = true
