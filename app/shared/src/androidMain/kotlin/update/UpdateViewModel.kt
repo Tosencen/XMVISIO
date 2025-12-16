@@ -36,6 +36,8 @@ class UpdateViewModel(private val context: Context) {
     val latestVersion: NewVersion?
         get() = _latestVersion
     
+    private var _downloadedFile: File? = null
+    
     /**
      * 检查更新
      */
@@ -96,6 +98,7 @@ class UpdateViewModel(private val context: Context) {
                 downloadState.collect { state ->
                     when (state) {
                         is DownloadState.Success -> {
+                            _downloadedFile = state.file
                             _updateState.value = UpdateState.Downloaded(state.file)
                             progressJob.cancel()
                         }
@@ -158,6 +161,20 @@ class UpdateViewModel(private val context: Context) {
      */
     fun reset() {
         _updateState.value = UpdateState.Idle
+    }
+    
+    /**
+     * 检查是否已下载完成且有安装权限，如果是则自动安装
+     * 用于从授权页面返回时自动安装
+     */
+    fun checkAndInstallIfReady() {
+        val file = _downloadedFile ?: return
+        
+        // 如果当前状态是等待权限，且现在有权限了，则自动安装
+        if (_updateState.value is UpdateState.InstallPermissionRequested && 
+            updateInstaller.hasInstallPermission()) {
+            installApk(file)
+        }
     }
 }
 

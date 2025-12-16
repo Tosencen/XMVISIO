@@ -28,7 +28,8 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     var showUpdateDialog by remember { mutableStateOf(false) }
-    val currentVersion = com.xmvisio.app.util.getAppVersion()
+    var showAboutDialog by remember { mutableStateOf(false) }
+    val currentVersion = com.xmvisio.app.util.rememberAppVersion()
     val updateViewModel = rememberUpdateViewModel()
     
     Scaffold(
@@ -113,7 +114,7 @@ fun SettingsScreen(
                 icon = Icons.Filled.Info,
                 title = "关于 XMVISIO",
                 subtitle = "查看应用信息、版本、版权",
-                onClick = { /* TODO: 打开关于页面 */ },
+                onClick = { showAboutDialog = true },
                 showChevron = false,
                 trailingText = null
             )
@@ -124,6 +125,14 @@ fun SettingsScreen(
             ShowUpdateDialog(
                 updateViewModel = updateViewModel,
                 onDismiss = { showUpdateDialog = false }
+            )
+        }
+        
+        // 关于对话框
+        if (showAboutDialog) {
+            AboutDialog(
+                currentVersion = currentVersion,
+                onDismiss = { showAboutDialog = false }
             )
         }
     }
