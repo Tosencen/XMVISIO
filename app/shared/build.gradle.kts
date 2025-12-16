@@ -50,6 +50,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            
+            // DataStore for preferences
+            implementation(libs.datastore.preferences)
         }
         
         val desktopMain by getting {

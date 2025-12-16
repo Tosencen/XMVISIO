@@ -75,11 +75,24 @@ fun AudioPlayerScreen(
             // 如果没有分类，显示所有音频
             allAudios
         }
+        
+        // 设置播放列表到播放器，用于自动播放下一首
+        audioPlayer.setPlaylist(
+            uris = playlist.map { it.uri },
+            ids = playlist.map { it.id },
+            onPlayNext = { nextId ->
+                // 找到下一首音频并播放
+                val nextAudio = playlist.find { it.id == nextId }
+                if (nextAudio != null) {
+                    currentAudio = nextAudio
+                }
+            }
+        )
     }
     
-    // 睡眠定时器状态
-    var sleepTimerEndTime by remember { mutableStateOf<Long?>(null) }
-    var sleepTimerRemaining by remember { mutableStateOf<Duration?>(null) }
+    // 使用全局睡眠定时器
+    val sleepTimerManager = remember { com.xmvisio.app.audio.SleepTimerManager.getInstance(context) }
+    val sleepTimerRemaining by sleepTimerManager.remainingTime.collectAsState()
     
     // 准备播放器
     LaunchedEffect(currentAudio.id) {
@@ -105,20 +118,7 @@ fun AudioPlayerScreen(
         }
     }
     
-    // 睡眠定时器倒计时
-    LaunchedEffect(sleepTimerEndTime) {
-        sleepTimerEndTime?.let { endTime ->
-            while (System.currentTimeMillis() < endTime) {
-                val remaining = (endTime - System.currentTimeMillis()).milliseconds
-                sleepTimerRemaining = remaining
-                delay(1000) // 每秒更新一次
-            }
-            // 时间到，暂停播放
-            audioPlayer.pause()
-            sleepTimerEndTime = null
-            sleepTimerRemaining = null
-        }
-    }
+    // 睡眠定时器由全局管理器处理，不需要在这里处理
     
     // 返回键处理（不暂停播放，让音频在后台继续）
     BackHandler {
@@ -207,7 +207,8 @@ fun AudioPlayerScreen(
                     audioPlayer.seekTo(position)
                 },
                 onSpeedClick = { showSpeedDialog = true },
-                onTimerClick = { showSleepTimerDialog = true }
+                onTimerClick = { showSleepTimerDialog = true },
+                onTimerCancel = { sleepTimerManager.cancelTimer() }
             )
             
             Spacer(modifier = Modifier.height(48.dp))
@@ -243,7 +244,7 @@ fun AudioPlayerScreen(
     if (showSleepTimerDialog) {
         SleepTimerDialog(
             onSetTimer = { duration ->
-                sleepTimerEndTime = System.currentTimeMillis() + duration.inWholeMilliseconds
+                sleepTimerManager.setTimer(duration)
             },
             onDismiss = { showSleepTimerDialog = false }
         )
@@ -287,6 +288,7 @@ private fun ProgressSlider(
     onSeek: (Duration) -> Unit,
     onSpeedClick: () -> Unit,
     onTimerClick: () -> Unit,
+    onTimerCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -313,9 +315,17 @@ private fun ProgressSlider(
                 )
             }
             
-            // 睡眠定时器按钮
+            // 睡眠定时器按钮（点击设置，长按取消）
             FilledTonalButton(
-                onClick = onTimerClick,
+                onClick = {
+                    if (sleepTimerRemaining != null) {
+                        // 如果已有定时器，点击取消
+                        onTimerCancel()
+                    } else {
+                        // 否则打开设置对话框
+                        onTimerClick()
+                    }
+                },
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Icon(

@@ -5,10 +5,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
@@ -17,6 +15,7 @@ import com.xmvisio.app.ui.adaptive.AniNavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -24,7 +23,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.xmvisio.app.ui.main.AudiobookScreen
 import com.xmvisio.app.ui.main.DownloadsScreen
-import com.xmvisio.app.ui.main.VideoScreen
 import com.xmvisio.app.ui.theme.AppTheme
 
 /**
@@ -32,7 +30,11 @@ import com.xmvisio.app.ui.theme.AppTheme
  */
 @Composable
 fun App() {
-    var themeSettings by remember { mutableStateOf(com.xmvisio.app.data.ThemeSettings.Default) }
+    val themeSettingsManager = remember { com.xmvisio.app.data.createThemeSettingsManager() }
+    val themeSettings by themeSettingsManager.themeSettings.collectAsState(
+        initial = com.xmvisio.app.data.ThemeSettings.Default
+    )
+    val coroutineScope = rememberCoroutineScope()
     
     AppTheme(themeSettings = themeSettings) {
         // 配置系统栏颜色
@@ -70,7 +72,11 @@ fun App() {
             composable("theme_settings") {
                 com.xmvisio.app.ui.settings.ThemeSettingsPage(
                     themeSettings = themeSettings,
-                    onThemeChange = { themeSettings = it },
+                    onThemeChange = { newSettings ->
+                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            themeSettingsManager.saveThemeSettings(newSettings)
+                        }
+                    },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -135,7 +141,6 @@ fun MainScreen(
                         showPlayer = true
                     }
                 )
-                MainTab.VIDEO -> VideoScreen()
                 MainTab.DOWNLOADS -> DownloadsScreen(onNavigateToSettings = onNavigateToSettings)
             }
         }
@@ -151,14 +156,9 @@ enum class MainTab(
     val unselectedIcon: ImageVector
 ) {
     AUDIOBOOK(
-        label = "有声书",
+        label = "有声",
         selectedIcon = Icons.Filled.AudioFile,
         unselectedIcon = Icons.Outlined.AudioFile
-    ),
-    VIDEO(
-        label = "视频",
-        selectedIcon = Icons.Filled.VideoLibrary,
-        unselectedIcon = Icons.Outlined.VideoLibrary
     ),
     DOWNLOADS(
         label = "下载",
