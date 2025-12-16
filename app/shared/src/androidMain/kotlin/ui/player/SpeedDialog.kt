@@ -82,26 +82,36 @@ fun SpeedDialog(
                 }
             }
             
-            // 快捷速度按钮 - 水平排列，文字水平显示
+            // 快捷速度按钮 - 使用 FilterChip 与倒计时快速选择保持一致
+            Text(
+                text = "快速选择",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { presetSpeed ->
-                    FilledTonalButton(
+                    FilterChip(
+                        selected = speed == presetSpeed,
                         onClick = {
                             speed = presetSpeed
                             onSpeedChange(presetSpeed)
                         },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = if (presetSpeed == 1.0f) "正常" else "${presetSpeed}x",
-                            style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1
-                        )
-                    }
+                        label = {
+                            Text(
+                                text = if (presetSpeed == 1.0f) "正常" else "${presetSpeed}x",
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    )
                 }
             }
             

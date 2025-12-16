@@ -25,30 +25,32 @@ sealed class AudioOperationResult {
  */
 class AudioManager(private val context: Context) {
     
+    private var mediaService: com.xmvisio.app.media.LocalMediaService? = null
+    
+    /**
+     * 初始化（需要在 Activity 中调用）
+     */
+    fun initialize(activity: androidx.activity.ComponentActivity) {
+        if (mediaService == null) {
+            mediaService = com.xmvisio.app.media.LocalMediaService(context).apply {
+                initialize(activity)
+            }
+        }
+    }
+    
+    private fun getMediaService(): com.xmvisio.app.media.LocalMediaService {
+        return mediaService ?: throw IllegalStateException("AudioManager not initialized. Call initialize() first.")
+    }
+    
     /**
      * 重命名音频文件
      */
     suspend fun renameAudio(uri: Uri, newName: String): AudioOperationResult = withContext(Dispatchers.IO) {
         try {
-            val values = ContentValues().apply {
-                put(MediaStore.Audio.Media.DISPLAY_NAME, newName)
-            }
-            
-            val rowsUpdated = context.contentResolver.update(uri, values, null, null)
-            if (rowsUpdated > 0) {
+            val success = getMediaService().renameMedia(uri, newName)
+            if (success) {
                 AudioOperationResult.Success
             } else {
-                AudioOperationResult.Failed
-            }
-        } catch (e: SecurityException) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val recoverableSecurityException = e as? RecoverableSecurityException
-                    ?: throw RuntimeException(e.message, e)
-                AudioOperationResult.NeedPermission(
-                    recoverableSecurityException.userAction.actionIntent.intentSender
-                )
-            } else {
-                android.util.Log.e("AudioManager", "重命名失败", e)
                 AudioOperationResult.Failed
             }
         } catch (e: Exception) {
@@ -62,21 +64,10 @@ class AudioManager(private val context: Context) {
      */
     suspend fun deleteAudio(uri: Uri): AudioOperationResult = withContext(Dispatchers.IO) {
         try {
-            val rowsDeleted = context.contentResolver.delete(uri, null, null)
-            if (rowsDeleted > 0) {
+            val success = getMediaService().deleteMedia(listOf(uri))
+            if (success) {
                 AudioOperationResult.Success
             } else {
-                AudioOperationResult.Failed
-            }
-        } catch (e: SecurityException) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val recoverableSecurityException = e as? RecoverableSecurityException
-                    ?: throw RuntimeException(e.message, e)
-                AudioOperationResult.NeedPermission(
-                    recoverableSecurityException.userAction.actionIntent.intentSender
-                )
-            } else {
-                android.util.Log.e("AudioManager", "删除失败", e)
                 AudioOperationResult.Failed
             }
         } catch (e: Exception) {

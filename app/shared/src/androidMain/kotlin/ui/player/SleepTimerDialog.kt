@@ -21,7 +21,7 @@ fun SleepTimerDialog(
 ) {
     var selectedMinutes by remember { mutableStateOf(30) }
     
-    // 预设时间选项（分钟）
+    // 预设时间选项（分钟）- 15分钟、30分钟、45分钟、1小时、1.5小时、2小时
     val presetMinutes = listOf(15, 30, 45, 60, 90, 120)
     
     AlertDialog(
@@ -57,12 +57,21 @@ fun SleepTimerDialog(
                                     onClick = { selectedMinutes = minutes },
                                     label = {
                                         Text(
-                                            text = if (minutes >= 60) {
-                                                "${minutes / 60}小时"
-                                            } else {
-                                                "${minutes}分钟"
+                                            text = when {
+                                                minutes >= 60 -> {
+                                                    val hours = minutes / 60
+                                                    val mins = minutes % 60
+                                                    if (mins > 0) {
+                                                        "${hours}.${mins / 6}小时"
+                                                    } else {
+                                                        "${hours}小时"
+                                                    }
+                                                }
+                                                else -> "${minutes}分钟"
                                             },
-                                            style = MaterialTheme.typography.bodyLarge
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     },
                                     modifier = Modifier

@@ -36,6 +36,31 @@ class AudioPlayer(private val context: Context) {
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
     
     private val positionManager = PlaybackPositionManager(context)
+    private val speedManager = PlaybackSpeedManager(context)
+    
+    // 播放列表和自动播放下一首
+    private var playlist: List<Uri> = emptyList()
+    private var playlistIds: List<Long> = emptyList()
+    private var onPlayNextCallback: ((Long) -> Unit)? = null
+    
+    init {
+        // 初始化时加载保存的播放速度
+        CoroutineScope(Dispatchers.IO).launch {
+            speedManager.playbackSpeed.collect { speed ->
+                _playbackSpeed.value = speed
+                // 如果播放器已经准备好，应用速度
+                mediaPlayer?.let { player ->
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        try {
+                            player.playbackParams = player.playbackParams.setSpeed(speed)
+                        } catch (e: Exception) {
+                            println("应用播放速度失败: ${e.message}")
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     /**
      * 获取当前播放的音频ID
@@ -68,6 +93,15 @@ class AudioPlayer(private val context: Context) {
                 setOnPreparedListener { mp ->
                     _duration.value = mp.duration.milliseconds
                     
+                    // 应用保存的播放速度
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        try {
+                            mp.playbackParams = mp.playbackParams.setSpeed(_playbackSpeed.value)
+                        } catch (e: Exception) {
+                            println("应用播放速度失败: ${e.message}")
+                        }
+                    }
+                    
                     // 恢复上次播放位置
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                         val savedPosition = positionManager.getPosition(audioId)
@@ -87,6 +121,9 @@ class AudioPlayer(private val context: Context) {
                             positionManager.clearPosition(id)
                         }
                     }
+                    
+                    // 自动播放下一首
+                    playNext()
                 }
                 setOnErrorListener { _, what, extra ->
                     onError(Exception("MediaPlayer error: what=$what, extra=$extra"))
@@ -196,7 +233,7 @@ class AudioPlayer(private val context: Context) {
     }
     
     /**
-     * 设置播放速度
+     * 设置播放速度（全局保存）
      */
     fun setPlaybackSpeed(speed: Float) {
         mediaPlayer?.let {
@@ -204,11 +241,39 @@ class AudioPlayer(private val context: Context) {
                 try {
                     it.playbackParams = it.playbackParams.setSpeed(speed)
                     _playbackSpeed.value = speed
+                    
+                    // 保存到全局设置
+                    CoroutineScope(Dispatchers.IO).launch {
+                        speedManager.saveSpeed(speed)
+                    }
                 } catch (e: Exception) {
                     // 某些设备可能不支持
                     println("设置播放速度失败: ${e.message}")
                 }
             }
+        }
+    }
+    
+    /**
+     * 设置播放列表
+     */
+    fun setPlaylist(uris: List<Uri>, ids: List<Long>, onPlayNext: (Long) -> Unit) {
+        playlist = uris
+        playlistIds = ids
+        onPlayNextCallback = onPlayNext
+    }
+    
+    /**
+     * 播放下一首
+     */
+    private fun playNext() {
+        val currentId = _currentAudioId.value ?: return
+        val currentIndex = playlistIds.indexOf(currentId)
+        
+        if (currentIndex >= 0 && currentIndex < playlistIds.size - 1) {
+            // 有下一首，通知回调
+            val nextId = playlistIds[currentIndex + 1]
+            onPlayNextCallback?.invoke(nextId)
         }
     }
     
