@@ -6,6 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -90,6 +91,9 @@ fun SettingsScreen(
                 showChevron = true
             )
             
+            // 播放进度条样式（仅 Android）
+            SliderStyleSection()
+            
             Spacer(modifier = Modifier.height(8.dp))
             
             // 其他
@@ -107,6 +111,18 @@ fun SettingsScreen(
                 onClick = { showUpdateDialog = true },
                 showChevron = false,
                 trailingText = "v$currentVersion"
+            )
+            
+            // 功能反馈
+            SettingsCard(
+                icon = Icons.Filled.Feedback,
+                title = "功能反馈",
+                subtitle = "提交问题、建议或反馈",
+                onClick = { 
+                    com.xmvisio.app.util.openUrl("https://github.com/Tosencen/XMVISIO/issues")
+                },
+                showChevron = false,
+                trailingText = null
             )
             
             // 关于 XMVISIO
@@ -152,6 +168,12 @@ expect fun ShowUpdateDialog(
  */
 @Composable
 expect fun rememberUpdateViewModel(): Any
+
+/**
+ * 播放进度条样式设置区域（平台特定实现）
+ */
+@Composable
+expect fun SliderStyleSection()
 
 /**
  * 设置卡片组件

@@ -15,6 +15,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // 请求通知权限（Android 13+）
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != 
+                android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
+        }
+        
         // 初始化崩溃处理器
         CrashHandler.init(this)
         
@@ -23,6 +34,9 @@ class MainActivity : ComponentActivity() {
         
         // 初始化全局音频管理器
         com.xmvisio.app.audio.GlobalAudioManager.initialize(this, this)
+        
+        // 初始化 URL Opener
+        com.xmvisio.app.util.initializeUrlOpener(this)
         
         // 初始化更新 ViewModel
         updateViewModel = UpdateViewModel(this)

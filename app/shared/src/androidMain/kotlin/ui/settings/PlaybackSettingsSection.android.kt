@@ -62,46 +62,48 @@ actual fun PlaybackSettingsSection() {
             
             HorizontalDivider()
             
-            // 音量提升
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 音量提升（整个卡片可点击）
+            Surface(
+                onClick = { showVolumeBoostDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                color = androidx.compose.ui.graphics.Color.Transparent
             ) {
                 Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.VolumeUp,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Column {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
                         Text(
                             text = "音量提升",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        Text(
-                            text = if (volumeBoost > 0f) {
-                                "+${volumeBoost.toInt()} dB"
-                            } else {
-                                "关闭"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (volumeBoost > 0f) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
                     }
-                }
-                
-                TextButton(onClick = { showVolumeBoostDialog = true }) {
-                    Text("调整")
+                    
+                    Text(
+                        text = if (volumeBoost > 0f) {
+                            "+${volumeBoost.toInt()} dB"
+                        } else {
+                            "关闭"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (volumeBoost > 0f) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
                 }
             }
         }

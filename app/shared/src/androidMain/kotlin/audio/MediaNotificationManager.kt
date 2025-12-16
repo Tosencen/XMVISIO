@@ -138,9 +138,9 @@ class MediaNotificationManager(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        // 构建通知 - 始终显示三个按钮：上一首、播放/暂停、下一首
+        // 构建通知 - 使用自定义填充样式图标（无描边）
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(if (isPlaying) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause)
+            .setSmallIcon(NotificationIcons.getSmallIcon(context))
             .setContentTitle(title)
             .setContentText(contentText)
             .setContentIntent(contentIntent)
@@ -151,39 +151,39 @@ class MediaNotificationManager(private val context: Context) {
         
         // 添加上一首按钮（如果没有上一首，按钮仍然显示但禁用）
         builder.addAction(
-            NotificationCompat.Action(
-                android.R.drawable.ic_media_previous,
+            NotificationCompat.Action.Builder(
+                NotificationIcons.getSkipPreviousIcon(context),
                 "上一首",
                 if (hasPrevious) createPendingIntent(ACTION_PREVIOUS) else null
-            )
+            ).build()
         )
         
         // 添加播放/暂停按钮
         if (isPlaying) {
             builder.addAction(
-                NotificationCompat.Action(
-                    android.R.drawable.ic_media_pause,
+                NotificationCompat.Action.Builder(
+                    NotificationIcons.getPauseIcon(context),
                     "暂停",
                     createPendingIntent(ACTION_PAUSE)
-                )
+                ).build()
             )
         } else {
             builder.addAction(
-                NotificationCompat.Action(
-                    android.R.drawable.ic_media_play,
+                NotificationCompat.Action.Builder(
+                    NotificationIcons.getPlayIcon(context),
                     "播放",
                     createPendingIntent(ACTION_PLAY)
-                )
+                ).build()
             )
         }
         
         // 添加下一首按钮（如果没有下一首，按钮仍然显示但禁用）
         builder.addAction(
-            NotificationCompat.Action(
-                android.R.drawable.ic_media_next,
+            NotificationCompat.Action.Builder(
+                NotificationIcons.getSkipNextIcon(context),
                 "下一首",
                 if (hasNext) createPendingIntent(ACTION_NEXT) else null
-            )
+            ).build()
         )
         
         // 设置 MediaStyle，在紧凑视图中显示三个按钮

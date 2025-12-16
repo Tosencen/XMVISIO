@@ -295,7 +295,7 @@ internal fun AudiobookScreenImpl(
                                 )
                             )
                         } else {
-                            Text("音频")
+                            Text("有声")
                         }
                     },
                     navigationIcon = {
@@ -672,7 +672,12 @@ internal fun AudiobookScreenImpl(
                                 LazyColumn(
                                     state = listState,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(16.dp),
+                                    contentPadding = PaddingValues(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = 16.dp,
+                                        bottom = 120.dp  // 增加底部间距，避免被悬浮条遮挡
+                                    ),
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     items(
@@ -704,6 +709,22 @@ internal fun AudiobookScreenImpl(
                                                     }
                                                 },
                                                 modifier = Modifier.animateItem()
+                                            )
+                                        }
+                                    }
+                                    
+                                    // 底部标语
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "— 用心聆听，感受声音的力量 —",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                             )
                                         }
                                     }

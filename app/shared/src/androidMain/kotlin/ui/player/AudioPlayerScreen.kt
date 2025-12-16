@@ -92,13 +92,34 @@ fun AudioPlayerScreen(
             null
         }
         
-        playlist = if (categoryId != null) {
+        val baselist = if (categoryId != null) {
             // 获取该分类下的所有音频
             val audioIds = categoryManager.getAudioIdsByCategory(categoryId)
             allAudios.filter { it.id in audioIds }
         } else {
             // 如果没有分类，显示所有音频
             allAudios
+        }
+        
+        // 应用自定义排序（与首页保持一致）
+        val audioOrderManager = com.xmvisio.app.audio.AudioOrderManager(context)
+        val customOrder = audioOrderManager.getOrderSync(categoryId)
+        
+        playlist = if (customOrder != null) {
+            // 按照自定义排序重新排列
+            val orderedList = mutableListOf<LocalAudioFile>()
+            customOrder.forEach { audioId ->
+                baselist.find { it.id == audioId }?.let { orderedList.add(it) }
+            }
+            // 添加不在自定义排序中的新音频
+            baselist.forEach { audio ->
+                if (audio.id !in customOrder) {
+                    orderedList.add(audio)
+                }
+            }
+            orderedList
+        } else {
+            baselist
         }
         
         // 设置播放列表到播放器，用于自动播放下一首
@@ -110,6 +131,19 @@ fun AudioPlayerScreen(
                 val nextAudio = playlist.find { it.id == nextId }
                 if (nextAudio != null) {
                     currentAudio = nextAudio
+                    // 准备并播放下一首
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        audioPlayer.prepare(
+                            uri = nextAudio.uri,
+                            audioId = nextAudio.id,
+                            onPrepared = {
+                                audioPlayer.play()
+                            },
+                            onError = { error ->
+                                println("播放器错误: ${error.message}")
+                            }
+                        )
+                    }
                 }
             }
         )
@@ -211,26 +245,26 @@ fun AudioPlayerScreen(
                                 onClose()
                             }
                         } else {
-                            // 回弹到原位
+                            // 平滑回到原位（无回弹）
                             coroutineScope.launch {
                                 dragOffsetAnimatable.animateTo(
                                     targetValue = 0f,
-                                    animationSpec = androidx.compose.animation.core.spring(
-                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                                    animationSpec = androidx.compose.animation.core.tween(
+                                        durationMillis = 300,
+                                        easing = androidx.compose.animation.core.FastOutSlowInEasing
                                     )
                                 )
                             }
                         }
                     },
                     onDragCancel = {
-                        // 取消拖动，回弹到原位
+                        // 取消拖动，平滑回到原位（无回弹）
                         coroutineScope.launch {
                             dragOffsetAnimatable.animateTo(
                                 targetValue = 0f,
-                                animationSpec = androidx.compose.animation.core.spring(
-                                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                                animationSpec = androidx.compose.animation.core.tween(
+                                    durationMillis = 300,
+                                    easing = androidx.compose.animation.core.FastOutSlowInEasing
                                 )
                             )
                         }
@@ -268,7 +302,7 @@ fun AudioPlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .padding(top = 48.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -285,7 +319,7 @@ fun AudioPlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(top = if (categoryName != null) 48.dp else 48.dp, bottom = 24.dp),
+                .padding(top = if (categoryName != null) 80.dp else 48.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -426,6 +460,7 @@ fun AudioPlayerScreen(
 /**
  * 进度条组件（带播放速度和睡眠定时器按钮）
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProgressSlider(
     currentPosition: Duration,
@@ -439,6 +474,10 @@ private fun ProgressSlider(
     onTimerCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val sliderStyleManager = remember { com.xmvisio.app.data.SliderStyleManager.getInstance(context) }
+    val sliderStyle by sliderStyleManager.sliderStyle.collectAsState()
+    
     Column(modifier = modifier.fillMaxWidth()) {
         // 播放速度和睡眠定时器按钮
         Row(
@@ -495,19 +534,80 @@ private fun ProgressSlider(
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // 进度条
-        Slider(
-            value = if (duration.inWholeMilliseconds > 0) {
-                (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
-            } else {
-                0f
-            },
-            onValueChange = { value ->
-                val newPosition = (duration.inWholeMilliseconds * value).toLong()
-                onSeek(newPosition.milliseconds)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
+        // 根据样式渲染不同的进度条
+        when (sliderStyle) {
+            com.xmvisio.app.data.SliderStyle.DEFAULT -> {
+                // 默认样式：标准 Slider
+                Slider(
+                    value = if (duration.inWholeMilliseconds > 0) {
+                        (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
+                    } else {
+                        0f
+                    },
+                    onValueChange = { value ->
+                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
+                        onSeek(newPosition.milliseconds)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            
+            com.xmvisio.app.data.SliderStyle.SQUIGGLY -> {
+                // 波浪样式：暂时使用默认样式（需要第三方库支持）
+                // TODO: 集成 SquigglySlider 库
+                Slider(
+                    value = if (duration.inWholeMilliseconds > 0) {
+                        (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
+                    } else {
+                        0f
+                    },
+                    onValueChange = { value ->
+                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
+                        onSeek(newPosition.milliseconds)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            
+            com.xmvisio.app.data.SliderStyle.SLIM -> {
+                // 纤细样式：无滑块的自定义轨道
+                val sliderState = remember {
+                    androidx.compose.material3.SliderState(
+                        value = 0f,
+                        valueRange = 0f..1f
+                    )
+                }
+                
+                // 更新 slider 状态
+                LaunchedEffect(currentPosition, duration) {
+                    if (duration.inWholeMilliseconds > 0) {
+                        sliderState.value = (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
+                    }
+                }
+                
+                Slider(
+                    state = sliderState,
+                    onValueChange = { value ->
+                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
+                        onSeek(newPosition.milliseconds)
+                    },
+                    thumb = { Spacer(modifier = Modifier.size(0.dp)) },
+                    track = { state ->
+                        com.xmvisio.app.ui.foundation.PlayerSliderTrack(
+                            sliderState = state,
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                activeTickColor = MaterialTheme.colorScheme.primary,
+                                inactiveTickColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            ),
+                            trackHeight = 10.dp
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
         
         // 时间显示
         Row(
