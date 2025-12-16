@@ -2,7 +2,7 @@ package com.xmvisio.app.ui.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LinearScale
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,7 +65,7 @@ actual fun SliderStyleSection() {
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.LinearScale,
+                    imageVector = Icons.Filled.Tune,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )

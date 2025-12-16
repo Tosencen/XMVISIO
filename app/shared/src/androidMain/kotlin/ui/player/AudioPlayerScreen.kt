@@ -89,7 +89,7 @@ fun AudioPlayerScreen(
             val categories = categoryManager.getCategories()
             categories.find { it.id == categoryId }?.name
         } else {
-            null
+            "全部"
         }
         
         val baselist = if (categoryId != null) {
@@ -297,29 +297,27 @@ fun AudioPlayerScreen(
             }
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // 顶部分类名称
-        categoryName?.let { name ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 48.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+        // 顶部分类名称（始终显示）
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = categoryName ?: "",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(top = if (categoryName != null) 80.dp else 48.dp, bottom = 24.dp),
+                .padding(top = 80.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -553,8 +551,29 @@ private fun ProgressSlider(
             }
             
             com.xmvisio.app.data.SliderStyle.SQUIGGLY -> {
-                // 波浪样式：暂时使用默认样式（需要第三方库支持）
-                // TODO: 集成 SquigglySlider 库
+                // 波浪样式：使用第三方库 SquigglySlider
+                me.saket.squiggles.SquigglySlider(
+                    value = if (duration.inWholeMilliseconds > 0) {
+                        (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
+                    } else {
+                        0f
+                    },
+                    onValueChange = { value ->
+                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
+                        onSeek(newPosition.milliseconds)
+                    },
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            
+            com.xmvisio.app.data.SliderStyle.SLIM -> {
+                // 纤细样式：无滑块的自定义轨道
                 Slider(
                     value = if (duration.inWholeMilliseconds > 0) {
                         (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
@@ -565,36 +584,10 @@ private fun ProgressSlider(
                         val newPosition = (duration.inWholeMilliseconds * value).toLong()
                         onSeek(newPosition.milliseconds)
                     },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            
-            com.xmvisio.app.data.SliderStyle.SLIM -> {
-                // 纤细样式：无滑块的自定义轨道
-                val sliderState = remember {
-                    androidx.compose.material3.SliderState(
-                        value = 0f,
-                        valueRange = 0f..1f
-                    )
-                }
-                
-                // 更新 slider 状态
-                LaunchedEffect(currentPosition, duration) {
-                    if (duration.inWholeMilliseconds > 0) {
-                        sliderState.value = (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
-                    }
-                }
-                
-                Slider(
-                    state = sliderState,
-                    onValueChange = { value ->
-                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
-                        onSeek(newPosition.milliseconds)
-                    },
                     thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                    track = { state ->
+                    track = { sliderState ->
                         com.xmvisio.app.ui.foundation.PlayerSliderTrack(
-                            sliderState = state,
+                            sliderState = sliderState,
                             colors = SliderDefaults.colors(
                                 activeTrackColor = MaterialTheme.colorScheme.primary,
                                 inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),

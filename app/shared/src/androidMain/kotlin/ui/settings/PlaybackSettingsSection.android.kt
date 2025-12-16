@@ -24,21 +24,20 @@ actual fun PlaybackSettingsSection() {
     
     var showVolumeBoostDialog by remember { mutableStateOf(false) }
     
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // 跳过空白部分
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
         ) {
-            // 跳过空白部分
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -59,51 +58,48 @@ actual fun PlaybackSettingsSection() {
                     onCheckedChange = { settingsManager.setSkipSilence(it) }
                 )
             }
-            
-            HorizontalDivider()
-            
-            // 音量提升（整个卡片可点击）
-            Surface(
-                onClick = { showVolumeBoostDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                color = androidx.compose.ui.graphics.Color.Transparent
+        }
+        
+        // 音量提升
+        Card(
+            onClick = { showVolumeBoostDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Icon(
+                        imageVector = Icons.Default.VolumeUp,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
                         Text(
                             text = "音量提升",
                             style = MaterialTheme.typography.titleMedium
                         )
+                        Text(
+                            text = if (volumeBoost > 0f) {
+                                "+${volumeBoost.toInt()} dB"
+                            } else {
+                                "关闭"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    
-                    Text(
-                        text = if (volumeBoost > 0f) {
-                            "+${volumeBoost.toInt()} dB"
-                        } else {
-                            "关闭"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (volumeBoost > 0f) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
                 }
             }
         }
