@@ -38,12 +38,22 @@ class AudioPlayer(private val context: Context) {
     private val positionManager = PlaybackPositionManager(context)
     private val speedManager = PlaybackSpeedManager(context)
     
+    // 音频焦点管理器
+    private val audioFocusManager = AudioFocusManager(
+        context = context,
+        onPause = { pause() },
+        onResume = { /* 不自动恢复播放，让用户手动控制 */ }
+    )
+    
     // 播放列表和自动播放下一首
     private var playlist: List<Uri> = emptyList()
     private var playlistIds: List<Long> = emptyList()
     private var onPlayNextCallback: ((Long) -> Unit)? = null
     
     init {
+        // 注册音频焦点和蓝牙耳机监听器
+        audioFocusManager.register()
+        
         // 初始化时加载保存的播放速度
         CoroutineScope(Dispatchers.IO).launch {
             speedManager.playbackSpeed.collect { speed ->
@@ -122,8 +132,14 @@ class AudioPlayer(private val context: Context) {
                         }
                     }
                     
-                    // 自动播放下一首
-                    playNext()
+                    // 检查睡眠定时器是否设置为音频结束时暂停
+                    val sleepTimerManager = SleepTimerManager.getInstance(context)
+                    val shouldPauseAtEnd = sleepTimerManager.checkAndPauseAtAudioEnd()
+                    
+                    // 如果没有设置音频结束时暂停，则自动播放下一首
+                    if (!shouldPauseAtEnd) {
+                        playNext()
+                    }
                 }
                 setOnErrorListener { _, what, extra ->
                     onError(Exception("MediaPlayer error: what=$what, extra=$extra"))
@@ -140,6 +156,12 @@ class AudioPlayer(private val context: Context) {
      * 播放
      */
     fun play() {
+        // 请求音频焦点
+        if (!audioFocusManager.requestAudioFocus()) {
+            println("无法获取音频焦点")
+            return
+        }
+        
         mediaPlayer?.let {
             try {
                 if (!it.isPlaying) {
@@ -169,6 +191,9 @@ class AudioPlayer(private val context: Context) {
                 println("暂停失败: ${e.message}")
             }
         }
+        
+        // 暂停时放弃音频焦点
+        audioFocusManager.abandonAudioFocus()
     }
     
     /**
@@ -180,9 +205,13 @@ class AudioPlayer(private val context: Context) {
                 if (it.isPlaying) {
                     it.pause()
                     _isPlaying.value = false
+                    audioFocusManager.abandonAudioFocus()
                 } else {
-                    it.start()
-                    _isPlaying.value = true
+                    // 请求音频焦点
+                    if (audioFocusManager.requestAudioFocus()) {
+                        it.start()
+                        _isPlaying.value = true
+                    }
                 }
             } catch (e: Exception) {
                 println("切换播放状态失败: ${e.message}")
@@ -316,6 +345,10 @@ class AudioPlayer(private val context: Context) {
                 positionManager.savePosition(id, _currentPosition.value)
             }
         }
+        
+        // 注销音频焦点和蓝牙耳机监听器
+        audioFocusManager.unregister()
+        audioFocusManager.abandonAudioFocus()
         
         mediaPlayer?.release()
         mediaPlayer = null

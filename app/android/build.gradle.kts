@@ -59,6 +59,9 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
     
+    // 媒体支持
+    implementation(libs.androidx.media)
+    
     // 网络请求 - OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     

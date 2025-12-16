@@ -77,11 +77,20 @@ fun AudioPlayerScreen(
     val categoryManager = remember { com.xmvisio.app.audio.CategoryManager(context) }
     val audioScanner = remember { com.xmvisio.app.audio.AudioScanner(context) }
     var playlist by remember { mutableStateOf<List<LocalAudioFile>>(emptyList()) }
+    var categoryName by remember { mutableStateOf<String?>(null) }
     
     LaunchedEffect(currentAudio.id) {
         // 获取当前音频所属的分类
         val categoryId = categoryManager.getAudioCategory(currentAudio.id)
         val allAudios = audioScanner.scanAudioFiles()
+        
+        // 获取分类名称
+        categoryName = if (categoryId != null) {
+            val categories = categoryManager.getCategories()
+            categories.find { it.id == categoryId }?.name
+        } else {
+            null
+        }
         
         playlist = if (categoryId != null) {
             // 获取该分类下的所有音频
@@ -109,6 +118,14 @@ fun AudioPlayerScreen(
     // 使用全局睡眠定时器
     val sleepTimerManager = remember { com.xmvisio.app.audio.SleepTimerManager.getInstance(context) }
     val sleepTimerRemaining by sleepTimerManager.remainingTime.collectAsState()
+    
+    // 使用全局播放器控制器（管理通知）
+    val playerController = remember { com.xmvisio.app.audio.GlobalAudioPlayerController.getInstance(context) }
+    
+    // 更新播放器控制器的当前音频和播放列表
+    LaunchedEffect(currentAudio.id, playlist) {
+        playerController.setCurrentAudio(currentAudio, playlist)
+    }
     val isSetToAudioEnd by sleepTimerManager.isSetToAudioEnd.collectAsState()
     
     // 准备播放器
@@ -246,11 +263,29 @@ fun AudioPlayerScreen(
             }
             .background(MaterialTheme.colorScheme.surface)
     ) {
+        // 顶部分类名称
+        categoryName?.let { name ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(top = 48.dp, bottom = 24.dp),
+                .padding(top = if (categoryName != null) 48.dp else 48.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
