@@ -28,7 +28,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     var showUpdateDialog by remember { mutableStateOf(false) }
-    val currentVersion = "1.0.0"
+    val currentVersion = com.xmvisio.app.util.getAppVersion()
     
     Scaffold(
         topBar = {
