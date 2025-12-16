@@ -435,8 +435,6 @@ internal fun AudiobookScreenImpl(
                             thickness = 1.dp,
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }

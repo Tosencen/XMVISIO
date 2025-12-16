@@ -65,6 +65,9 @@ kotlin {
             
             // JSON serialization
             implementation(libs.kotlinx.serialization.json)
+            
+            // Squiggly Slider for wave animation
+            implementation(libs.squigglyslider)
         }
         
         val desktopMain by getting {

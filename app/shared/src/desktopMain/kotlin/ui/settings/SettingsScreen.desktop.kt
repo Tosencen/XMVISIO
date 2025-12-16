@@ -22,20 +22,6 @@ actual fun rememberUpdateViewModel(): Any {
 }
 
 /**
- * Desktop 平台的下载更新实现（暂不支持）
- */
-actual suspend fun startDownloadUpdate(
-    downloadUrl: String,
-    fallbackUrl: String?,
-    version: String,
-    onProgress: (Float) -> Unit,
-    onResult: (UpdateState) -> Unit
-) {
-    // Desktop 平台暂不支持自动更新
-    onResult(UpdateState.DownloadFailed("Desktop 平台暂不支持自动更新"))
-}
-
-/**
  * 播放进度条样式设置区域（Desktop 平台暂不支持）
  */
 @Composable
