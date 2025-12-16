@@ -54,6 +54,9 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
             
+            // Media support for notifications
+            implementation(libs.androidx.media)
+            
             // DataStore for preferences
             implementation(libs.datastore.preferences)
         }

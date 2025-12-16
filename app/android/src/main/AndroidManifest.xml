@@ -13,6 +13,10 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     
+    <!-- 前台服务和通知权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -41,5 +45,18 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        
+        <!-- Media notification receiver -->
+        <receiver
+            android:name="com.xmvisio.app.audio.MediaNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.xmvisio.app.ACTION_PLAY" />
+                <action android:name="com.xmvisio.app.ACTION_PAUSE" />
+                <action android:name="com.xmvisio.app.ACTION_PREVIOUS" />
+                <action android:name="com.xmvisio.app.ACTION_NEXT" />
+                <action android:name="com.xmvisio.app.ACTION_STOP" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
