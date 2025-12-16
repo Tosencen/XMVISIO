@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -230,7 +231,7 @@ fun MiniPlayerBar(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Default.AudioFile,
+                                        Icons.Default.Album,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
@@ -308,19 +309,15 @@ fun MiniPlayerBar(
 
                     Spacer(modifier = Modifier.width(8.dp))
                     
-                    // 收藏按钮
+                    // 播放/暂停按钮
                     IconButton(
-                        onClick = onFavoriteClick,
+                        onClick = onPlayPauseClick,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isFavorite) "取消收藏" else "收藏",
-                            tint = if (isFavorite) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            },
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "暂停" else "播放",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             modifier = Modifier.size(18.dp)
                         )
                     }

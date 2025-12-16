@@ -34,3 +34,11 @@ actual suspend fun startDownloadUpdate(
     // Desktop 平台暂不支持自动更新
     onResult(UpdateState.DownloadFailed("Desktop 平台暂不支持自动更新"))
 }
+
+/**
+ * 播放进度条样式设置区域（Desktop 平台暂不支持）
+ */
+@Composable
+actual fun SliderStyleSection() {
+    // Desktop 平台暂不支持进度条样式切换
+}
