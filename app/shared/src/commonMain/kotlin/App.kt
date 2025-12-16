@@ -29,6 +29,12 @@ import com.xmvisio.app.ui.main.DownloadsScreen
 import com.xmvisio.app.ui.theme.AppTheme
 
 /**
+ * 带更新检查的应用入口（Android 专用）
+ */
+@Composable
+expect fun AppWithUpdateCheck(updateViewModel: Any)
+
+/**
  * XMVISIO 应用入口
  */
 @Composable

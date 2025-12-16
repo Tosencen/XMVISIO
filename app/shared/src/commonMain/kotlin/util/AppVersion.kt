@@ -1,6 +1,9 @@
 package com.xmvisio.app.util
 
+import androidx.compose.runtime.Composable
+
 /**
- * 获取应用版本号
+ * 获取应用版本号（Composable）
  */
-expect fun getAppVersion(): String
+@Composable
+expect fun rememberAppVersion(): String

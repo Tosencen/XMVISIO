@@ -3,11 +3,15 @@ package com.xmvisio.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
 import com.xmvisio.app.crash.CrashHandler
 import com.xmvisio.app.crash.getCrashInfo
 import com.xmvisio.app.ui.crash.CrashScreen
+import com.xmvisio.app.update.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
+    private var updateViewModel: UpdateViewModel? = null
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -19,6 +23,9 @@ class MainActivity : ComponentActivity() {
         
         // 初始化全局音频管理器
         com.xmvisio.app.audio.GlobalAudioManager.initialize(this, this)
+        
+        // 初始化更新 ViewModel
+        updateViewModel = UpdateViewModel(this)
         
         // 检查是否有崩溃信息
         val (errorMessage, stackTrace) = intent.getCrashInfo()
@@ -40,8 +47,14 @@ class MainActivity : ComponentActivity() {
                 )
             } else {
                 // 正常显示应用
-                App()
+                AppWithUpdateCheck(updateViewModel = updateViewModel!!)
             }
         }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // 检查是否从授权页面返回，如果已下载完成则自动安装
+        updateViewModel?.checkAndInstallIfReady()
     }
 }
