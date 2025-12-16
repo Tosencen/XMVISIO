@@ -1,17 +1,12 @@
 # XMVISIO
 
-一套代码，多端运行：Android、Desktop (Windows/Mac/Linux)
-
-基于 Kotlin Multiplatform + Compose Multiplatform 构建的跨平台媒体应用。
+基于 Kotlin Multiplatform + Compose Multiplatform 构建的媒体应用。
 
 
 ## ✨ 特性
 
-- 🎯 **Kotlin Multiplatform** - 共享业务逻辑
-- 🎨 **Compose Multiplatform** - 统一 UI 框架
-- 📱 **Android** - 原生 Android 应用，支持自适应图标
-- 🖥️ **Desktop** - macOS/Windows/Linux 桌面应用
-- 🎨 **自适应导航** - 桌面端侧边栏，移动端底部导航栏
+- 📱 **Android 应用** - 原生 Android 应用，支持自适应图标
+- 🎨 **现代 UI** - 基于 Compose 构建的流畅界面
 - 🌓 **主题系统** - 支持浅色/深色/自动主题切换
 - 🧩 **模块化架构** - 清晰的分层设计
 - 🚀 **开箱即用** - 预配置构建系统
