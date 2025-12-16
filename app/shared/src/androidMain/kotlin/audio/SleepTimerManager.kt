@@ -24,6 +24,9 @@ class SleepTimerManager private constructor(private val context: Context) {
     private val _remainingTime = MutableStateFlow<Duration?>(null)
     val remainingTime: StateFlow<Duration?> = _remainingTime.asStateFlow()
     
+    private val _isSetToAudioEnd = MutableStateFlow(false)
+    val isSetToAudioEnd: StateFlow<Boolean> = _isSetToAudioEnd.asStateFlow()
+    
     private var timerJob: Job? = null
     
     /**
@@ -32,6 +35,7 @@ class SleepTimerManager private constructor(private val context: Context) {
     fun setTimer(duration: Duration) {
         val endTimeMillis = System.currentTimeMillis() + duration.inWholeMilliseconds
         _endTime.value = endTimeMillis
+        _isSetToAudioEnd.value = false
         
         // 取消之前的定时器
         timerJob?.cancel()
@@ -50,6 +54,31 @@ class SleepTimerManager private constructor(private val context: Context) {
     }
     
     /**
+     * 设置当前音频结束时暂停
+     */
+    fun setTimerAtAudioEnd() {
+        _isSetToAudioEnd.value = true
+        _endTime.value = null
+        _remainingTime.value = null
+        
+        // 取消之前的定时器
+        timerJob?.cancel()
+        timerJob = null
+    }
+    
+    /**
+     * 检查是否应该在音频结束时暂停
+     * 由 AudioPlayer 在音频播放完成时调用
+     */
+    fun checkAndPauseAtAudioEnd(): Boolean {
+        if (_isSetToAudioEnd.value) {
+            _isSetToAudioEnd.value = false
+            return true
+        }
+        return false
+    }
+    
+    /**
      * 取消睡眠定时器
      */
     fun cancelTimer() {
@@ -57,6 +86,7 @@ class SleepTimerManager private constructor(private val context: Context) {
         timerJob = null
         _endTime.value = null
         _remainingTime.value = null
+        _isSetToAudioEnd.value = false
     }
     
     /**

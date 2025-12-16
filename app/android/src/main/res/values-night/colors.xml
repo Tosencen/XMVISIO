@@ -2,4 +2,7 @@
 <resources>
     <!-- Launcher icon background (Dark mode) -->
     <color name="launcher_background">#121212</color>
+    
+    <!-- Splash Screen colors (Dark mode) -->
+    <color name="splash_background_night">#121212</color>
 </resources>

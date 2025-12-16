@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme (Night) -->
+    <style name="Theme.XMVISIO" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Splash Screen -->
+        <item name="android:windowBackground">@drawable/splash_background_night</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

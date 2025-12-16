@@ -16,6 +16,7 @@ import kotlin.time.Duration.Companion.minutes
 @Composable
 fun SleepTimerDialog(
     onSetTimer: (Duration) -> Unit,
+    onSetTimerAtAudioEnd: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -133,13 +134,27 @@ fun SleepTimerDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onSetTimer(selectedMinutes.minutes)
-                    onDismiss()
-                }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("确定")
+                // 当前音频结束按钮
+                TextButton(
+                    onClick = {
+                        onSetTimerAtAudioEnd()
+                        onDismiss()
+                    }
+                ) {
+                    Text("音频结束")
+                }
+                
+                TextButton(
+                    onClick = {
+                        onSetTimer(selectedMinutes.minutes)
+                        onDismiss()
+                    }
+                ) {
+                    Text("确定")
+                }
             }
         },
         dismissButton = {
