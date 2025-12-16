@@ -21,14 +21,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.ui.geometry.Offset
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -112,6 +112,9 @@ internal fun AudiobookScreenImpl(
     var isReorderMode by remember { mutableStateOf(false) }
     val audioOrderManager = remember { com.xmvisio.app.audio.AudioOrderManager(context) }
     
+    // 存储每个分类的排序列表 - 避免页面切换时重新加载
+    val categorySortedListsCache = remember { mutableStateMapOf<String, List<LocalAudioFile>>() }
+    
     // Pager状态 - 用于左右滑动切换分类
     val initialPage = remember(categories) {
         categories.indexOfFirst { it.id == selectedCategory.id }.coerceAtLeast(0)
@@ -148,6 +151,9 @@ internal fun AudiobookScreenImpl(
             audioList
         }
     }
+    
+    // 当前页面的排序后音频列表（用于 MiniPlayerBar 的上一首/下一首）
+    var currentPageAudioList by remember { mutableStateOf<List<LocalAudioFile>>(emptyList()) }
     
     // 菜单状态
     var showContextMenu by remember { mutableStateOf(false) }
@@ -264,7 +270,11 @@ internal fun AudiobookScreenImpl(
     val recentPlayManager = remember { RecentPlayManager.getInstance(context) }
     val recentAudioId by recentPlayManager.recentAudioId.collectAsState()
     
+    // Snackbar 状态
+    val snackbarHostState = remember { SnackbarHostState() }
+    
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize(),
         topBar = {
             Column {
@@ -431,51 +441,7 @@ internal fun AudiobookScreenImpl(
                 }
             }
         },
-        bottomBar = {
-            // 只在有最近播放记录且不在搜索/排序模式时显示迷你播放器
-            if (recentAudioId != null && !isSearching && !isReorderMode && permissionStatus == PermissionStatus.GRANTED) {
-                val recentAudio = audioList.find { it.id == recentAudioId }
-                if (recentAudio != null) {
-                    val globalPlayer = remember { com.xmvisio.app.audio.GlobalAudioPlayer.getInstance(context) }
-                    val isPlaying by globalPlayer.isPlaying.collectAsState()
-                    val currentPosition by globalPlayer.currentPosition.collectAsState()
-                    val playerDuration by globalPlayer.duration.collectAsState()
-                    val currentPlayingAudioId = globalPlayer.getCurrentAudioId()
-                    
-                    // 只有当前播放的音频是最近播放的音频时才显示
-                    if (currentPlayingAudioId == recentAudioId) {
-                        com.xmvisio.app.ui.player.MiniPlayerBar(
-                            audio = recentAudio,
-                            isPlaying = isPlaying,
-                            position = currentPosition,
-                            duration = playerDuration,
-                            canSkipNext = true, // TODO: 根据播放列表判断
-                            canSkipPrevious = true, // TODO: 根据播放列表判断
-                            onPlayPauseClick = {
-                                if (isPlaying) {
-                                    globalPlayer.pause()
-                                } else {
-                                    globalPlayer.play()
-                                }
-                            },
-                            onNextClick = {
-                                // TODO: 播放下一首
-                            },
-                            onPreviousClick = {
-                                // TODO: 播放上一首
-                            },
-                            onFavoriteClick = {
-                                // TODO: 收藏功能
-                            },
-                            onClick = {
-                                onNavigateToPlayer(recentAudio)
-                            },
-                            isFavorite = false // TODO: 根据实际收藏状态
-                        )
-                    }
-                }
-            }
-        },
+        bottomBar = {},
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
     ) { paddingValues ->
         Box(
@@ -616,18 +582,10 @@ internal fun AudiobookScreenImpl(
                                 }
                             }
                             
-                            // 应用自定义排序
-                            var categoryFilteredList by remember(baseCategoryFilteredList, category.id) {
-                                mutableStateOf(baseCategoryFilteredList)
-                            }
-                            
-                            // 拖拽状态
-                            var draggedItem by remember { mutableStateOf<LocalAudioFile?>(null) }
-                            var draggedOverIndex by remember { mutableStateOf<Int?>(null) }
-                            
-                            // 加载自定义排序
-                            LaunchedEffect(baseCategoryFilteredList, category.id) {
-                                val customOrder = audioOrderManager.getOrder(
+                            // 从缓存获取或加载排序列表（初始化时就应用排序）
+                            val categoryFilteredList = categorySortedListsCache.getOrPut(category.id) {
+                                // 同步读取自定义排序
+                                val customOrder = audioOrderManager.getOrderSync(
                                     if (category.id == AudioCategory.ALL.id) null else category.id
                                 )
                                 
@@ -643,14 +601,68 @@ internal fun AudiobookScreenImpl(
                                             orderedList.add(audio)
                                         }
                                     }
-                                    categoryFilteredList = orderedList
+                                    orderedList
                                 } else {
-                                    categoryFilteredList = baseCategoryFilteredList
+                                    baseCategoryFilteredList
+                                }
+                            }
+                            
+                            // 当 baseCategoryFilteredList 变化时更新缓存
+                            LaunchedEffect(baseCategoryFilteredList) {
+                                val customOrder = audioOrderManager.getOrderSync(
+                                    if (category.id == AudioCategory.ALL.id) null else category.id
+                                )
+                                
+                                val sortedList = if (customOrder != null) {
+                                    val orderedList = mutableListOf<LocalAudioFile>()
+                                    customOrder.forEach { audioId ->
+                                        baseCategoryFilteredList.find { it.id == audioId }?.let { orderedList.add(it) }
+                                    }
+                                    baseCategoryFilteredList.forEach { audio ->
+                                        if (audio.id !in customOrder) {
+                                            orderedList.add(audio)
+                                        }
+                                    }
+                                    orderedList
+                                } else {
+                                    baseCategoryFilteredList
+                                }
+                                
+                                categorySortedListsCache[category.id] = sortedList
+                            }
+                            
+                            // 更新当前页面的音频列表（用于 MiniPlayerBar）
+                            LaunchedEffect(categoryFilteredList, pagerState.currentPage, pageIndex) {
+                                if (pagerState.currentPage == pageIndex) {
+                                    currentPageAudioList = categoryFilteredList
                                 }
                             }
                             
                             // 滚动状态
                             val listState = rememberLazyListState()
+                            
+                            // Reorderable 状态
+                            val reorderableLazyListState = rememberReorderableLazyListState(listState) { from, to ->
+                                if (isReorderMode) {
+                                    val fromIndex = from.index
+                                    val toIndex = to.index
+                                    
+                                    val newList = categoryFilteredList.toMutableList()
+                                    val item = newList.removeAt(fromIndex)
+                                    newList.add(toIndex, item)
+                                    
+                                    // 更新缓存
+                                    categorySortedListsCache[category.id] = newList
+                                    
+                                    // 保存排序
+                                    scope.launch {
+                                        audioOrderManager.saveOrder(
+                                            if (category.id == AudioCategory.ALL.id) null else category.id,
+                                            newList.map { it.id }
+                                        )
+                                    }
+                                }
+                            }
                             
                             PullToRefreshBox(
                                 isRefreshing = isRefreshing,
@@ -667,67 +679,130 @@ internal fun AudiobookScreenImpl(
                                         items = categoryFilteredList,
                                         key = { it.id }
                                     ) { audio ->
-                                        val index = categoryFilteredList.indexOf(audio)
-                                        AudioItem(
-                                            audio = audio,
-                                            isReorderMode = isReorderMode,
-                                            isDragging = draggedItem?.id == audio.id,
-                                            onCardClick = {
-                                                if (!isReorderMode) {
-                                                    // 记录最近播放
-                                                    scope.launch {
-                                                        recentPlayManager.recordRecentPlay(audio.id, audio.title)
-                                                    }
-                                                    onNavigateToPlayer(audio)
-                                                }
-                                            },
-                                            onLongClick = {
-                                                if (!isReorderMode) {
-                                                    selectedAudio = audio
-                                                    showContextMenu = true
-                                                }
-                                            },
-                                            onDragStart = if (isReorderMode) {
-                                                {
-                                                    draggedItem = audio
-                                                }
-                                            } else null,
-                                            onDragEnd = if (isReorderMode) {
-                                                {
-                                                    if (draggedItem != null && draggedOverIndex != null) {
-                                                        val fromIndex = categoryFilteredList.indexOf(draggedItem!!)
-                                                        val toIndex = draggedOverIndex!!
-                                                        
-                                                        if (fromIndex != toIndex) {
-                                                            val newList = categoryFilteredList.toMutableList()
-                                                            val item = newList.removeAt(fromIndex)
-                                                            newList.add(toIndex, item)
-                                                            categoryFilteredList = newList
-                                                            
-                                                            // 保存排序
-                                                            scope.launch {
-                                                                audioOrderManager.saveOrder(
-                                                                    if (category.id == AudioCategory.ALL.id) null else category.id,
-                                                                    newList.map { it.id }
-                                                                )
-                                                            }
+                                        ReorderableItem(
+                                            reorderableLazyListState,
+                                            key = audio.id
+                                        ) { isDragging ->
+                                            AudioItem(
+                                                audio = audio,
+                                                isReorderMode = isReorderMode,
+                                                isDragging = isDragging,
+                                                dragHandleModifier = Modifier.draggableHandle(),
+                                                onCardClick = {
+                                                    if (!isReorderMode) {
+                                                        // 记录最近播放
+                                                        scope.launch {
+                                                            recentPlayManager.recordRecentPlay(audio.id, audio.title)
                                                         }
+                                                        onNavigateToPlayer(audio)
                                                     }
-                                                    draggedItem = null
-                                                    draggedOverIndex = null
-                                                }
-                                            } else null,
-                                            onDragOver = if (isReorderMode) {
-                                                {
-                                                    draggedOverIndex = index
-                                                }
-                                            } else null,
-                                            modifier = Modifier.animateItem()
-                                        )
+                                                },
+                                                onLongClick = {
+                                                    if (!isReorderMode) {
+                                                        selectedAudio = audio
+                                                        showContextMenu = true
+                                                    }
+                                                },
+                                                modifier = Modifier.animateItem()
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
+                    }
+                }
+            }
+            
+            // 悬浮的 MiniPlayerBar
+            val globalPlayer = remember { com.xmvisio.app.audio.GlobalAudioPlayer.getInstance(context) }
+            val isPlaying by globalPlayer.isPlaying.collectAsState()
+            val currentPosition by globalPlayer.currentPosition.collectAsState()
+            val playerDuration by globalPlayer.duration.collectAsState()
+            val currentPlayingAudioId by globalPlayer.currentAudioId.collectAsState()
+            
+            // 显示 MiniPlayerBar：如果有正在播放的音频，或者有最近播放记录
+            val displayAudioId = currentPlayingAudioId ?: recentAudioId
+            
+            if (displayAudioId != null && !isSearching && !isReorderMode && permissionStatus == PermissionStatus.GRANTED) {
+                val playingAudio = audioList.find { it.id == displayAudioId }
+                if (playingAudio != null) {
+                    // 使用当前页面的排序后列表来判断上一首/下一首
+                    val currentIndex = currentPageAudioList.indexOfFirst { it.id == currentPlayingAudioId }
+                    val canSkipNext = currentIndex >= 0 && currentIndex < currentPageAudioList.size - 1
+                    val canSkipPrevious = currentIndex > 0
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .zIndex(999f)
+                    ) {
+                        com.xmvisio.app.ui.player.MiniPlayerBar(
+                            audio = playingAudio,
+                            isPlaying = isPlaying,
+                            position = currentPosition,
+                            duration = playerDuration,
+                            canSkipNext = canSkipNext,
+                            canSkipPrevious = canSkipPrevious,
+                            onPlayPauseClick = { 
+                                // 如果当前没有播放音频（只是显示最近播放），需要先准备
+                                if (currentPlayingAudioId == null) {
+                                    scope.launch {
+                                        globalPlayer.prepare(
+                                            uri = playingAudio.uri,
+                                            audioId = playingAudio.id,
+                                            onPrepared = { globalPlayer.play() }
+                                        )
+                                    }
+                                } else {
+                                    globalPlayer.togglePlayPause()
+                                }
+                            },
+                            onNextClick = {
+                                if (canSkipNext) {
+                                    val nextAudio = currentPageAudioList[currentIndex + 1]
+                                    scope.launch {
+                                        recentPlayManager.recordRecentPlay(nextAudio.id, nextAudio.title)
+                                        globalPlayer.prepare(
+                                            uri = nextAudio.uri,
+                                            audioId = nextAudio.id,
+                                            onPrepared = { globalPlayer.play() }
+                                        )
+                                    }
+                                } else {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "已经是最后一首了",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            },
+                            onPreviousClick = {
+                                if (canSkipPrevious) {
+                                    val previousAudio = currentPageAudioList[currentIndex - 1]
+                                    scope.launch {
+                                        recentPlayManager.recordRecentPlay(previousAudio.id, previousAudio.title)
+                                        globalPlayer.prepare(
+                                            uri = previousAudio.uri,
+                                            audioId = previousAudio.id,
+                                            onPrepared = { globalPlayer.play() }
+                                        )
+                                    }
+                                } else {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "已经是第一首了",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            },
+                            onFavoriteClick = {},
+                            onClick = { onNavigateToPlayer(playingAudio) },
+                            isFavorite = false
+                        )
                     }
                 }
             }
@@ -1085,20 +1160,14 @@ internal fun AudiobookScreenImpl(
                     TextButton(
                         onClick = {
                             scope.launch {
-                                android.util.Log.d("AudiobookScreen", "确定按钮被点击: audioId=${selectedAudio!!.id}, categoryId=$selectedCategoryId")
-                                
                                 categoryManager.setAudioCategory(
                                     selectedAudio!!.id,
                                     selectedCategoryId
                                 )
                                 
-                                android.util.Log.d("AudiobookScreen", "setAudioCategory完成，开始刷新")
-                                
                                 // 刷新分类列表和触发映射刷新
                                 categories = categoryManager.getCategories()
-                                categoryMappingVersion++  // 触发分类映射刷新
-                                
-                                android.util.Log.d("AudiobookScreen", "刷新完成，categoryMappingVersion=$categoryMappingVersion")
+                                categoryMappingVersion++
                                 
                                 showCategoryDialog = false
                             }
@@ -1397,11 +1466,9 @@ private fun AudioItem(
     audio: LocalAudioFile,
     isReorderMode: Boolean,
     isDragging: Boolean,
+    dragHandleModifier: Modifier,
     onCardClick: () -> Unit,
     onLongClick: () -> Unit,
-    onDragStart: (() -> Unit)?,
-    onDragEnd: (() -> Unit)?,
-    onDragOver: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1410,16 +1477,21 @@ private fun AudioItem(
     
     // 检查是否正在播放这个音频
     val isPlaying by globalPlayer.isPlaying.collectAsState()
-    val currentPlayingAudioId = globalPlayer.getCurrentAudioId()
+    val currentPlayingAudioId by globalPlayer.currentAudioId.collectAsState()
     val isThisAudioPlaying = isPlaying && currentPlayingAudioId == audio.id
     
-    // 获取播放位置和进度
-    val savedPosition by produceState(
-        initialValue = kotlin.time.Duration.ZERO,
-        key1 = audio.id,
-        key2 = isThisAudioPlaying
-    ) {
-        value = positionManager.getPosition(audio.id)
+    // 获取播放位置和进度 - 实时更新
+    val currentPosition by globalPlayer.currentPosition.collectAsState()
+    val savedPosition = if (isThisAudioPlaying) {
+        currentPosition
+    } else {
+        val saved by produceState(
+            initialValue = kotlin.time.Duration.ZERO,
+            key1 = audio.id
+        ) {
+            value = positionManager.getPosition(audio.id)
+        }
+        saved
     }
     
     val duration = remember(audio.duration) { audio.duration.milliseconds }
@@ -1453,11 +1525,14 @@ private fun AudioItem(
                 enabled = !isReorderMode
             ),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isDragging) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            focusedElevation = 0.dp,
+            hoveredElevation = 0.dp,
+            draggedElevation = if (isDragging) 4.dp else 0.dp
         )
     ) {
         Column {
@@ -1544,7 +1619,7 @@ private fun AudioItem(
                         
                         if (progress > 0f) {
                             Text(
-                                text = "${(progress * 100).toInt()}%",
+                                text = "已播${(progress * 100).toInt()}%",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1554,37 +1629,19 @@ private fun AudioItem(
                 
                 // 排序模式下显示拖拽手柄
                 if (isReorderMode) {
-                    Icon(
-                        imageVector = Icons.Default.DragHandle,
-                        contentDescription = "拖动排序",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .pointerInput(Unit) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { onDragStart?.invoke() },
-                                    onDragEnd = { onDragEnd?.invoke() },
-                                    onDragCancel = { onDragEnd?.invoke() },
-                                    onDrag = { _, _ -> 
-                                        onDragOver?.invoke()
-                                    }
-                                )
-                            }
-                    )
+                    Box(
+                        modifier = dragHandleModifier
+                            .size(48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DragHandle,
+                            contentDescription = "拖动排序",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
-            }
-            
-            // 进度条在卡片底部
-            if (progress > 0.05f) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(MaterialTheme.shapes.small),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             }
         }
     }

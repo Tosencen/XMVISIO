@@ -2,12 +2,14 @@ package com.xmvisio.app.ui.adaptive
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -83,7 +85,7 @@ fun AniNavigationSuite(
         
         NavigationSuiteType.NavigationBar -> {
             NavigationBar(
-                modifier = modifier,
+                modifier = modifier.clip(RoundedCornerShape(15.dp)),
                 containerColor = colors.navigationBarContainerColor,
                 contentColor = colors.navigationBarContentColor
             ) {

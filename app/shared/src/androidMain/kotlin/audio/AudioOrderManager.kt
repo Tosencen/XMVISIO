@@ -35,6 +35,17 @@ class AudioOrderManager(private val context: Context) {
     }
     
     /**
+     * 同步获取音频列表的自定义排序（用于初始化）
+     * @param categoryId 分类ID，null表示"全部"分类
+     * @return 排序后的音频ID列表，如果没有自定义排序则返回null
+     */
+    fun getOrderSync(categoryId: String?): List<Long>? {
+        val key = "order_${categoryId ?: "all"}"
+        val value = prefs.getString(key, null)
+        return value?.split(",")?.mapNotNull { it.toLongOrNull() }
+    }
+    
+    /**
      * 清除指定分类的自定义排序
      */
     suspend fun clearOrder(categoryId: String?) = withContext(Dispatchers.IO) {

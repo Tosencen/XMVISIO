@@ -1,0 +1,26 @@
+XMVISIO Release Signing Information
+====================================
+
+APK File: XMVISIO-release.apk
+Build Date: December 16, 2024
+
+Signing Configuration
+---------------------
+Keystore File: ~/Desktop/xmvisio-release.keystore
+Keystore Password: xmvisio2024
+Key Alias: xmvisio
+Key Password: xmvisio2024
+Validity: 10000 days
+
+Certificate Information
+-----------------------
+DN: CN=XMVISIO, OU=Development, O=XMVISIO, L=Beijing, ST=Beijing, C=CN
+SHA-256: c54a8c7f335774fd33eb8ee7af0b70413a09dd1225466666be1c8c65e42c502a
+SHA-1: 49f04ae8645af55381129cd708e3fb3ebf92452d
+MD5: 9ddcf40ba59e5602c05de2d1a219fd50
+
+Important Notes
+---------------
+1. Keep the keystore file and passwords secure
+2. Future updates must use the same signature for upgrade installation
+3. If the keystore is lost, you cannot update the app

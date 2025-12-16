@@ -41,6 +41,9 @@ kotlin {
             // Material Kolor - 动态主题
             api(libs.materialkolor)
             
+            // Reorderable - 拖动排序
+            api(libs.reorderable)
+            
             // Material3 Adaptive Navigation Suite
             api(libs.compose.material3.adaptive.core)
             api(libs.compose.material3.adaptive.layout)

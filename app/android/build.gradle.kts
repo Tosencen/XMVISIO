@@ -26,9 +26,19 @@ android {
         buildConfig = true
     }
     
+    signingConfigs {
+        create("release") {
+            storeFile = file("${System.getProperty("user.home")}/Desktop/xmvisio-release.keystore")
+            storePassword = "xmvisio2024"
+            keyAlias = "xmvisio"
+            keyPassword = "xmvisio2024"
+        }
+    }
+    
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     

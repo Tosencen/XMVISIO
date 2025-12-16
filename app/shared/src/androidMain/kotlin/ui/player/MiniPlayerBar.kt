@@ -109,7 +109,6 @@ fun MiniPlayerBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .background(Color.Transparent)
     ) {
@@ -123,9 +122,9 @@ fun MiniPlayerBar(
                     shape = RoundedCornerShape(32.dp),
                     clip = false
                 ),
-            tonalElevation = 2.dp,
+            tonalElevation = 0.dp,
             shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f)
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f)
         ) {
             Box(
                 modifier = Modifier
@@ -342,7 +341,7 @@ fun MiniPlayerBar(
                 }
             }
         }
-
+        
         // 滑动提示图标
         if (offsetXAnimatable.value.absoluteValue > 50f) {
             Box(

@@ -121,10 +121,6 @@ class CategoryManager(private val context: Context) {
         }
         
         saveMappings(mappings)
-        
-        // 调试日志
-        android.util.Log.d("CategoryManager", "setAudioCategory: audioId=$audioId, categoryId=$categoryId")
-        android.util.Log.d("CategoryManager", "Total mappings after save: ${mappings.size}")
     }
     
     /**
@@ -137,14 +133,7 @@ class CategoryManager(private val context: Context) {
         }
         
         val mappings = getMappings()
-        val result = mappings.filter { it.categoryId == categoryId }.map { it.audioId }
-        
-        // 调试日志
-        android.util.Log.d("CategoryManager", "getAudioIdsByCategory: categoryId=$categoryId")
-        android.util.Log.d("CategoryManager", "Total mappings: ${mappings.size}, Filtered result: ${result.size}")
-        android.util.Log.d("CategoryManager", "Result IDs: $result")
-        
-        result
+        mappings.filter { it.categoryId == categoryId }.map { it.audioId }
     }
     
     private fun saveCategories(categories: List<AudioCategory>) {
