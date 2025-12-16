@@ -59,6 +59,12 @@ kotlin {
             
             // DataStore for preferences
             implementation(libs.datastore.preferences)
+            
+            // OkHttp for network requests
+            implementation("com.squareup.okhttp3:okhttp:4.12.0")
+            
+            // JSON serialization
+            implementation(libs.kotlinx.serialization.json)
         }
         
         val desktopMain by getting {

@@ -29,6 +29,7 @@ fun SettingsScreen(
 ) {
     var showUpdateDialog by remember { mutableStateOf(false) }
     val currentVersion = com.xmvisio.app.util.getAppVersion()
+    val updateViewModel = rememberUpdateViewModel()
     
     Scaffold(
         topBar = {
@@ -120,8 +121,8 @@ fun SettingsScreen(
         
         // 更新检查对话框
         if (showUpdateDialog) {
-            UpdateCheckDialog(
-                currentVersion = currentVersion,
+            ShowUpdateDialog(
+                updateViewModel = updateViewModel,
                 onDismiss = { showUpdateDialog = false }
             )
         }
@@ -129,202 +130,19 @@ fun SettingsScreen(
 }
 
 /**
- * 更新检查对话框
- * 复刻 XMSLEEP 的设计
+ * 显示更新对话框（平台特定实现）
  */
 @Composable
-private fun UpdateCheckDialog(
-    currentVersion: String,
+expect fun ShowUpdateDialog(
+    updateViewModel: Any,
     onDismiss: () -> Unit
-) {
-    var updateState by remember { mutableStateOf<UpdateState>(UpdateState.Checking) }
-    
-    // 模拟检查更新
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(1500)
-        updateState = UpdateState.UpToDate // 当前已是最新版本
-        // updateState = UpdateState.HasUpdate("1.1.0", "## 更新内容\n\n- 修复了若干问题\n- 优化了性能\n- 新增了功能")
-    }
-    
-    when (val state = updateState) {
-        is UpdateState.Checking -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                title = { Text("软件更新") },
-                text = {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                        Text("正在检查更新...")
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("取消")
-                    }
-                }
-            )
-        }
-        
-        is UpdateState.UpToDate -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                title = { Text("软件更新") },
-                text = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "当前已是最新版本",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                            )
-                        }
-                        Text(
-                            text = "当前版本：v$currentVersion",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("确定")
-                    }
-                }
-            )
-        }
-        
-        is UpdateState.HasUpdate -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                title = { Text("发现新版本") },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.SystemUpdate,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Column {
-                                Text(
-                                    text = "版本：v${state.version}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                                )
-                                Text(
-                                    text = "当前版本：v$currentVersion",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        
-                        HorizontalDivider()
-                        
-                        if (state.changelog.isNotBlank()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "更新内容",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                                )
-                                Text(
-                                    text = state.changelog,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = { /* TODO: 下载更新 */ }) {
-                        Text("立即更新")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("稍后")
-                    }
-                }
-            )
-        }
-        
-        is UpdateState.CheckFailed -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                title = { Text("检查更新失败") },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text(
-                            text = state.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "请检查网络连接后重试",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        updateState = UpdateState.Checking
-                        // 重新检查
-                    }) {
-                        Text("重试")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("取消")
-                    }
-                }
-            )
-        }
-    }
-}
+)
 
 /**
- * 更新状态
+ * 创建 UpdateViewModel（平台特定实现）
  */
-private sealed class UpdateState {
-    object Checking : UpdateState()
-    object UpToDate : UpdateState()
-    data class HasUpdate(val version: String, val changelog: String) : UpdateState()
-    data class CheckFailed(val error: String) : UpdateState()
-}
+@Composable
+expect fun rememberUpdateViewModel(): Any
 
 /**
  * 设置卡片组件
