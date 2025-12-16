@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -154,6 +155,7 @@ internal fun AudiobookScreenImpl(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+    var showPropertiesDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var isAddCategoryFromSelection by remember { mutableStateOf(false) }  // 标记是否从分类选择对话框触发
     var showDeleteCategoryDialog by remember { mutableStateOf(false) }
@@ -429,24 +431,48 @@ internal fun AudiobookScreenImpl(
                 }
             }
         },
-        floatingActionButton = {
-            // 只在有最近播放记录且不在搜索/排序模式时显示
+        bottomBar = {
+            // 只在有最近播放记录且不在搜索/排序模式时显示迷你播放器
             if (recentAudioId != null && !isSearching && !isReorderMode && permissionStatus == PermissionStatus.GRANTED) {
-                FloatingActionButton(
-                    onClick = {
-                        // 查找最近播放的音频并打开播放器
-                        val recentAudio = audioList.find { it.id == recentAudioId }
-                        if (recentAudio != null) {
-                            onNavigateToPlayer(recentAudio)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "继续播放"
-                    )
+                val recentAudio = audioList.find { it.id == recentAudioId }
+                if (recentAudio != null) {
+                    val globalPlayer = remember { com.xmvisio.app.audio.GlobalAudioPlayer.getInstance(context) }
+                    val isPlaying by globalPlayer.isPlaying.collectAsState()
+                    val currentPosition by globalPlayer.currentPosition.collectAsState()
+                    val playerDuration by globalPlayer.duration.collectAsState()
+                    val currentPlayingAudioId = globalPlayer.getCurrentAudioId()
+                    
+                    // 只有当前播放的音频是最近播放的音频时才显示
+                    if (currentPlayingAudioId == recentAudioId) {
+                        com.xmvisio.app.ui.player.MiniPlayerBar(
+                            audio = recentAudio,
+                            isPlaying = isPlaying,
+                            position = currentPosition,
+                            duration = playerDuration,
+                            canSkipNext = true, // TODO: 根据播放列表判断
+                            canSkipPrevious = true, // TODO: 根据播放列表判断
+                            onPlayPauseClick = {
+                                if (isPlaying) {
+                                    globalPlayer.pause()
+                                } else {
+                                    globalPlayer.play()
+                                }
+                            },
+                            onNextClick = {
+                                // TODO: 播放下一首
+                            },
+                            onPreviousClick = {
+                                // TODO: 播放上一首
+                            },
+                            onFavoriteClick = {
+                                // TODO: 收藏功能
+                            },
+                            onClick = {
+                                onNavigateToPlayer(recentAudio)
+                            },
+                            isFavorite = false // TODO: 根据实际收藏状态
+                        )
+                    }
                 }
             }
         },
@@ -623,12 +649,16 @@ internal fun AudiobookScreenImpl(
                                 }
                             }
                             
+                            // 滚动状态
+                            val listState = rememberLazyListState()
+                            
                             PullToRefreshBox(
                                 isRefreshing = isRefreshing,
                                 onRefresh = { scanAudioFiles(true) },
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 LazyColumn(
+                                    state = listState,
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -796,6 +826,34 @@ internal fun AudiobookScreenImpl(
                     }
                 }
                 
+                // 属性选项
+                Surface(
+                    onClick = {
+                        showPropertiesDialog = true
+                        showContextMenu = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "属性",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                
                 // 删除选项
                 Surface(
                     onClick = {
@@ -826,6 +884,14 @@ internal fun AudiobookScreenImpl(
                 }
             }
         }
+    }
+    
+    // 属性对话框
+    if (showPropertiesDialog && selectedAudio != null) {
+        com.xmvisio.app.ui.audiobook.AudioPropertiesDialog(
+            audio = selectedAudio!!,
+            onDismiss = { showPropertiesDialog = false }
+        )
     }
     
     // 重命名对话框

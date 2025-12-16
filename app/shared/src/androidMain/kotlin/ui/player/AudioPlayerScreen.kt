@@ -2,18 +2,34 @@ package com.xmvisio.app.ui.player
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xmvisio.app.audio.AudioPlayer
 import com.xmvisio.app.audio.GlobalAudioPlayer
 import com.xmvisio.app.audio.LocalAudioFile
@@ -34,7 +50,7 @@ fun AudioPlayerScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
     
     // 使用全局单例播放器实例
     val audioPlayer: AudioPlayer = remember { GlobalAudioPlayer.getInstance(context) }
@@ -93,6 +109,7 @@ fun AudioPlayerScreen(
     // 使用全局睡眠定时器
     val sleepTimerManager = remember { com.xmvisio.app.audio.SleepTimerManager.getInstance(context) }
     val sleepTimerRemaining by sleepTimerManager.remainingTime.collectAsState()
+    val isSetToAudioEnd by sleepTimerManager.isSetToAudioEnd.collectAsState()
     
     // 准备播放器
     LaunchedEffect(currentAudio.id) {
@@ -120,6 +137,10 @@ fun AudioPlayerScreen(
     
     // 睡眠定时器由全局管理器处理，不需要在这里处理
     
+    // 下滑手势状态 - 使用 Animatable 实现平滑动画
+    val dragOffsetAnimatable = remember { androidx.compose.animation.core.Animatable(0f) }
+    val dragThreshold = 200f // 下滑超过这个距离就关闭
+    
     // 返回键处理（不暂停播放，让音频在后台继续）
     BackHandler {
         onClose()
@@ -132,47 +153,104 @@ fun AudioPlayerScreen(
     //     }
     // }
     
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = currentAudio.title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.basicMarquee()
-                        )
-                        currentAudio.artist?.let { artist ->
-                            Text(
-                                text = artist,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.basicMarquee()
+    // 计算透明度：拖动时逐渐变透明
+    val alpha = remember {
+        derivedStateOf {
+            val progress = (dragOffsetAnimatable.value / 1000f).coerceIn(0f, 1f)
+            1f - progress
+        }
+    }
+    
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .offset { androidx.compose.ui.unit.IntOffset(0, dragOffsetAnimatable.value.toInt()) }
+            .graphicsLayer {
+                // 透明度动画
+                this.alpha = alpha.value
+            }
+            .pointerInput(Unit) {
+                val velocityTracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+                
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        velocityTracker.resetTracking()
+                    },
+                    onDragEnd = {
+                        val velocity = velocityTracker.calculateVelocity().y
+                        val currentOffset = dragOffsetAnimatable.value
+                        
+                        // 根据速度和偏移量决定是否关闭
+                        if (velocity > 1000 || currentOffset > dragThreshold) {
+                            // 快速向下滑动或超过阈值，关闭播放器
+                            coroutineScope.launch {
+                                dragOffsetAnimatable.animateTo(
+                                    targetValue = 2000f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                                    )
+                                )
+                                onClose()
+                            }
+                        } else {
+                            // 回弹到原位
+                            coroutineScope.launch {
+                                dragOffsetAnimatable.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        // 取消拖动，回弹到原位
+                        coroutineScope.launch {
+                            dragOffsetAnimatable.animateTo(
+                                targetValue = 0f,
+                                animationSpec = androidx.compose.animation.core.spring(
+                                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                                )
                             )
                         }
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        velocityTracker.addPointerInputChange(change)
+                        // 只允许向下拖动
+                        if (dragAmount > 0 || dragOffsetAnimatable.value > 0) {
+                            coroutineScope.launch {
+                                val newValue = (dragOffsetAnimatable.value + dragAmount).coerceAtLeast(0f)
+                                dragOffsetAnimatable.snapTo(newValue)
+                            }
+                        }
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.ArrowBack, "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
                 )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
-    ) { paddingValues ->
+            }
+            .graphicsLayer {
+                // 添加缩放效果，拖动时略微缩小
+                val scale = 1f - (dragOffsetAnimatable.value / 2000f).coerceIn(0f, 0.05f)
+                scaleX = scale
+                scaleY = scale
+                
+                // 添加圆角效果
+                val cornerRadius = (dragOffsetAnimatable.value / 10f).coerceIn(0f, 32f)
+                clip = true
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                    topStart = cornerRadius.dp,
+                    topEnd = cornerRadius.dp
+                )
+            }
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .padding(top = 48.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -180,8 +258,7 @@ fun AudioPlayerScreen(
             Surface(
                 onClick = { showPlaylistDialog = true },
                 modifier = Modifier
-                    .size(280.dp)
-                    .padding(bottom = 48.dp),
+                    .size(280.dp),
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
@@ -197,12 +274,44 @@ fun AudioPlayerScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
+            // 歌曲标题和艺术家（居中显示）
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = currentAudio.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.basicMarquee()
+                )
+                
+                currentAudio.artist?.let { artist ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = artist,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.basicMarquee()
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
             // 进度条（带播放速度和睡眠定时器按钮）
             ProgressSlider(
                 currentPosition = currentPosition,
                 duration = duration,
                 playbackSpeed = playbackSpeed,
                 sleepTimerRemaining = sleepTimerRemaining,
+                isSetToAudioEnd = isSetToAudioEnd,
                 onSeek = { position ->
                     audioPlayer.seekTo(position)
                 },
@@ -246,6 +355,9 @@ fun AudioPlayerScreen(
             onSetTimer = { duration ->
                 sleepTimerManager.setTimer(duration)
             },
+            onSetTimerAtAudioEnd = {
+                sleepTimerManager.setTimerAtAudioEnd()
+            },
             onDismiss = { showSleepTimerDialog = false }
         )
     }
@@ -257,7 +369,7 @@ fun AudioPlayerScreen(
             currentAudioId = currentAudio.id,
             isPlaying = isPlaying,
             onAudioClick = { selectedAudio: LocalAudioFile ->
-                scope.launch {
+                coroutineScope.launch {
                     currentAudio = selectedAudio
                     audioPlayer.prepare(
                         uri = selectedAudio.uri,
@@ -285,6 +397,7 @@ private fun ProgressSlider(
     duration: Duration,
     playbackSpeed: Float,
     sleepTimerRemaining: Duration?,
+    isSetToAudioEnd: Boolean,
     onSeek: (Duration) -> Unit,
     onSpeedClick: () -> Unit,
     onTimerClick: () -> Unit,
@@ -318,7 +431,7 @@ private fun ProgressSlider(
             // 睡眠定时器按钮（点击设置，长按取消）
             FilledTonalButton(
                 onClick = {
-                    if (sleepTimerRemaining != null) {
+                    if (sleepTimerRemaining != null || isSetToAudioEnd) {
                         // 如果已有定时器，点击取消
                         onTimerCancel()
                     } else {
@@ -335,10 +448,10 @@ private fun ProgressSlider(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (sleepTimerRemaining != null) {
-                        formatSleepTimerShort(sleepTimerRemaining)
-                    } else {
-                        "定时"
+                    text = when {
+                        sleepTimerRemaining != null -> formatSleepTimerShort(sleepTimerRemaining)
+                        isSetToAudioEnd -> "音频结束"
+                        else -> "定时"
                     },
                     style = MaterialTheme.typography.bodyMedium
                 )

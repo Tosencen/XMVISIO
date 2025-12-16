@@ -1,0 +1,270 @@
+package com.xmvisio.app.ui.player
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.TwoWayConverter
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.pow
+import kotlin.math.roundToInt
+
+/**
+ * 播放器底部弹出层
+ * 参考 OpenTune 的 BottomSheet 实现
+ */
+@Composable
+fun PlayerBottomSheet(
+    state: PlayerBottomSheetState,
+    modifier: Modifier = Modifier,
+    background: @Composable (BoxScope.() -> Unit) = { },
+    onDismiss: (() -> Unit)? = null,
+    collapsedContent: @Composable BoxScope.() -> Unit,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    // 背景渐变
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                // 背景在 10%-61% 进度时渐变
+                alpha = (1.4f * (state.progress.coerceAtLeast(0.1f) - 0.1f).pow(0.5f)).coerceIn(0f, 1f)
+            }
+            .fillMaxSize(),
+        content = background
+    )
+    
+    // 主内容
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .offset {
+                val y = (state.expandedBound - state.value)
+                    .roundToPx()
+                    .coerceAtLeast(0)
+                IntOffset(x = 0, y = y)
+            }
+            .pointerInput(state) {
+                val velocityTracker = VelocityTracker()
+                
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        velocityTracker.addPointerInputChange(change)
+                        state.dispatchRawDelta(dragAmount)
+                    },
+                    onDragCancel = {
+                        velocityTracker.resetTracking()
+                        state.snapTo(state.collapsedBound)
+                    },
+                    onDragEnd = {
+                        val velocity = -velocityTracker.calculateVelocity().y
+                        velocityTracker.resetTracking()
+                        state.performFling(velocity, onDismiss)
+                    }
+                )
+            }
+            .clip(
+                RoundedCornerShape(
+                    topStart = if (!state.isExpanded) 16.dp else 0.dp,
+                    topEnd = if (!state.isExpanded) 16.dp else 0.dp
+                )
+            )
+    ) {
+        if (!state.isCollapsed && !state.isDismissed) {
+            BackHandler(onBack = state::collapseSoft)
+        }
+
+        // 展开内容
+        if (!state.isCollapsed) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = ((state.progress - 0.25f) * 4).coerceIn(0f, 1f)
+                    },
+                content = content
+            )
+        }
+
+        // 折叠内容（MiniPlayer）
+        if (!state.isExpanded && (onDismiss == null || !state.isDismissed)) {
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        alpha = 1f - (state.progress * 4).coerceAtMost(1f)
+                    }
+                    .fillMaxSize(),
+                content = collapsedContent
+            )
+        }
+    }
+}
+
+/**
+ * 播放器底部弹出层状态
+ */
+@Stable
+class PlayerBottomSheetState(
+    private val coroutineScope: CoroutineScope,
+    private val animatable: Animatable<Dp, *>,
+    val collapsedBound: Dp,
+) {
+    val dismissedBound: Dp
+        get() = animatable.lowerBound!!
+
+    val expandedBound: Dp
+        get() = animatable.upperBound!!
+
+    val value by animatable.asState()
+
+    val isDismissed by derivedStateOf {
+        value == animatable.lowerBound!!
+    }
+
+    val isCollapsed by derivedStateOf {
+        value == collapsedBound
+    }
+
+    val isExpanded by derivedStateOf {
+        value == animatable.upperBound
+    }
+
+    val progress by derivedStateOf {
+        1f - (animatable.upperBound!! - animatable.value) / (animatable.upperBound!! - collapsedBound)
+    }
+
+    fun collapse(animationSpec: AnimationSpec<Dp>) {
+        coroutineScope.launch {
+            animatable.animateTo(collapsedBound, animationSpec)
+        }
+    }
+
+    fun expand(animationSpec: AnimationSpec<Dp>) {
+        coroutineScope.launch {
+            animatable.animateTo(animatable.upperBound!!, animationSpec)
+        }
+    }
+
+    private fun collapse() {
+        collapse(spring())
+    }
+
+    private fun expand() {
+        expand(spring())
+    }
+
+    fun collapseSoft() {
+        collapse(spring(stiffness = Spring.StiffnessMediumLow))
+    }
+
+    fun expandSoft() {
+        expand(spring(stiffness = Spring.StiffnessMediumLow))
+    }
+
+    fun dismiss() {
+        coroutineScope.launch {
+            animatable.animateTo(animatable.lowerBound!!)
+        }
+    }
+
+    fun snapTo(value: Dp) {
+        coroutineScope.launch {
+            animatable.snapTo(value)
+        }
+    }
+
+    fun performFling(velocity: Float, onDismiss: (() -> Unit)?) {
+        if (velocity > 250) {
+            expand()
+        } else if (velocity < -250) {
+            if (value < collapsedBound && onDismiss != null) {
+                dismiss()
+                onDismiss.invoke()
+            } else {
+                collapse()
+            }
+        } else {
+            val l0 = dismissedBound
+            val l1 = (collapsedBound - dismissedBound) / 2
+            val l2 = (expandedBound - collapsedBound) / 2
+            val l3 = expandedBound
+
+            when (value) {
+                in l0..l1 -> {
+                    if (onDismiss != null) {
+                        dismiss()
+                        onDismiss.invoke()
+                    } else {
+                        collapse()
+                    }
+                }
+                in l1..l2 -> collapse()
+                in l2..l3 -> expand()
+                else -> Unit
+            }
+        }
+    }
+
+    fun dispatchRawDelta(delta: Float) {
+        coroutineScope.launch {
+            val density = animatable.targetValue // 使用当前密度
+            animatable.snapTo((animatable.value.value - delta).dp)
+        }
+    }
+}
+
+/**
+ * 记住播放器底部弹出层状态
+ */
+@Composable
+fun rememberPlayerBottomSheetState(
+    dismissedBound: Dp,
+    expandedBound: Dp,
+    collapsedBound: Dp = dismissedBound,
+    initialExpanded: Boolean = false,
+): PlayerBottomSheetState {
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val animatable = remember {
+        Animatable(
+            initialValue = if (initialExpanded) expandedBound else collapsedBound,
+            typeConverter = TwoWayConverter(
+                convertToVector = { AnimationVector1D(it.value) },
+                convertFromVector = { it.value.dp }
+            )
+        )
+    }
+
+    LaunchedEffect(dismissedBound, expandedBound) {
+        animatable.updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
+    }
+
+    return remember(dismissedBound, expandedBound, collapsedBound, coroutineScope) {
+
+        PlayerBottomSheetState(
+            coroutineScope = coroutineScope,
+            animatable = animatable,
+            collapsedBound = collapsedBound
+        )
+    }
+}

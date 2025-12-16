@@ -62,6 +62,17 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(0.dp))
             
+            // 播放设置
+            Text(
+                text = "播放",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            PlaybackSettingsSection()
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
             // 外观设置
             Text(
                 text = "外观",

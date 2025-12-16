@@ -1,5 +1,8 @@
 package com.xmvisio.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
@@ -101,16 +104,7 @@ fun MainScreen(
     var showPlayer by rememberSaveable { mutableStateOf(false) }
     var audioToPlay by remember { mutableStateOf<Any?>(null) }
     
-    if (showPlayer && audioToPlay != null) {
-        // 播放器全屏显示（Android平台）
-        com.xmvisio.app.ui.player.AudioPlayerScreenWrapper(
-            audio = audioToPlay!!,
-            onClose = {
-                showPlayer = false
-                audioToPlay = null
-            }
-        )
-    } else {
+    Box(modifier = Modifier.fillMaxSize()) {
         AniNavigationSuiteScaffold(
         navigationSuiteItems = {
             MainTab.entries.forEach { tab ->
@@ -143,6 +137,30 @@ fun MainScreen(
                 )
                 MainTab.DOWNLOADS -> DownloadsScreen(onNavigateToSettings = onNavigateToSettings)
             }
+        }
+        
+        // 播放器底部弹出层（带动画效果）
+        if (showPlayer && audioToPlay != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        showPlayer = false
+                        audioToPlay = null
+                    }
+            )
+            
+            com.xmvisio.app.ui.player.AudioPlayerScreenWrapper(
+                audio = audioToPlay!!,
+                onClose = {
+                    showPlayer = false
+                    audioToPlay = null
+                }
+            )
         }
     }
 }
