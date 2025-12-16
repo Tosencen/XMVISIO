@@ -120,7 +120,6 @@ class LocalMediaService(private val context: Context) : MediaService {
                             put(MediaStore.Audio.Media.DISPLAY_NAME, newName)
                         }
                         val updateCount = contentResolver.update(uri, values, null, null)
-                        android.util.Log.d("LocalMediaService", "重命名更新结果: $updateCount")
                         updateCount > 0
                     } catch (e: Exception) {
                         android.util.Log.e("LocalMediaService", "重命名失败", e)
@@ -130,7 +129,6 @@ class LocalMediaService(private val context: Context) : MediaService {
                 }
             },
             onResultCanceled = { 
-                android.util.Log.d("LocalMediaService", "用户取消重命名")
                 continuation.resume(false) 
             }
         )

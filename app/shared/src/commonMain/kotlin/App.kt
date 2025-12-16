@@ -139,21 +139,8 @@ fun MainScreen(
             }
         }
         
-        // 播放器底部弹出层（带动画效果）
+        // 播放器全屏显示
         if (showPlayer && audioToPlay != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        showPlayer = false
-                        audioToPlay = null
-                    }
-            )
-            
             com.xmvisio.app.ui.player.AudioPlayerScreenWrapper(
                 audio = audioToPlay!!,
                 onClose = {

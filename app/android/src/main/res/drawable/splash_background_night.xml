@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 背景颜色 -->
+    <!-- 背景颜色（默认使用浅色） -->
     <item android:drawable="@color/splash_background" />
 </layer-list>

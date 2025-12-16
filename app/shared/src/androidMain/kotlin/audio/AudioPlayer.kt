@@ -141,9 +141,15 @@ class AudioPlayer(private val context: Context) {
      */
     fun play() {
         mediaPlayer?.let {
-            if (!it.isPlaying) {
-                it.start()
+            try {
+                if (!it.isPlaying) {
+                    it.start()
+                }
+                // 无论如何都更新状态，确保UI同步
                 _isPlaying.value = true
+            } catch (e: Exception) {
+                println("播放失败: ${e.message}")
+                _isPlaying.value = false
             }
         }
     }
@@ -153,9 +159,14 @@ class AudioPlayer(private val context: Context) {
      */
     fun pause() {
         mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.pause()
+            try {
+                if (it.isPlaying) {
+                    it.pause()
+                }
+                // 无论如何都更新状态，确保UI同步
                 _isPlaying.value = false
+            } catch (e: Exception) {
+                println("暂停失败: ${e.message}")
             }
         }
     }
@@ -164,10 +175,18 @@ class AudioPlayer(private val context: Context) {
      * 切换播放/暂停
      */
     fun togglePlayPause() {
-        if (_isPlaying.value) {
-            pause()
-        } else {
-            play()
+        mediaPlayer?.let {
+            try {
+                if (it.isPlaying) {
+                    it.pause()
+                    _isPlaying.value = false
+                } else {
+                    it.start()
+                    _isPlaying.value = true
+                }
+            } catch (e: Exception) {
+                println("切换播放状态失败: ${e.message}")
+            }
         }
     }
     

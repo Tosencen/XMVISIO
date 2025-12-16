@@ -5,4 +5,5 @@
     
     <!-- Splash Screen colors (Light mode) -->
     <color name="splash_background">#FFFFFF</color>
+    <color name="splash_background_night">#FFFFFF</color>
 </resources>

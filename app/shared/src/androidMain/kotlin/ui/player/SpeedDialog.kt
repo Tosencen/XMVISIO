@@ -25,7 +25,8 @@ fun SpeedDialog(
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = modifier
+        modifier = modifier,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
         Column(
             modifier = Modifier
@@ -82,18 +83,19 @@ fun SpeedDialog(
                 }
             }
             
-            // 快捷速度按钮 - 使用 FilterChip 与倒计时快速选择保持一致
+            // 快捷速度按钮 - 2排显示
             Text(
                 text = "快速选择",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
+            // 第一排：0.75x, 1.0x, 1.25x
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { presetSpeed ->
+                listOf(0.75f, 1.0f, 1.25f).forEach { presetSpeed ->
                     FilterChip(
                         selected = speed == presetSpeed,
                         onClick = {
@@ -103,14 +105,37 @@ fun SpeedDialog(
                         label = {
                             Text(
                                 text = if (presetSpeed == 1.0f) "正常" else "${presetSpeed}x",
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                softWrap = false
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(40.dp)
+                    )
+                }
+            }
+            
+            // 第二排：1.5x, 2.0x, 3.0x
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(1.5f, 2.0f, 3.0f).forEach { presetSpeed ->
+                    FilterChip(
+                        selected = speed == presetSpeed,
+                        onClick = {
+                            speed = presetSpeed
+                            onSpeedChange(presetSpeed)
+                        },
+                        label = {
+                            Text(
+                                text = "${presetSpeed}x",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
                     )
                 }
             }
