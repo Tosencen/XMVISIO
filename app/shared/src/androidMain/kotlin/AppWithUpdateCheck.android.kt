@@ -17,6 +17,12 @@ actual fun AppWithUpdateCheck(updateViewModel: Any) {
     val context = LocalContext.current
     val updateState by vm.updateState.collectAsState()
     
+    // 获取主题设置
+    val themeSettingsManager = remember { com.xmvisio.app.data.createThemeSettingsManager() }
+    val themeSettings by themeSettingsManager.themeSettings.collectAsState(
+        initial = com.xmvisio.app.data.ThemeSettings.Default
+    )
+    
     // 获取当前版本
     val currentVersion = remember {
         try {
@@ -43,7 +49,7 @@ actual fun AppWithUpdateCheck(updateViewModel: Any) {
     // 显示应用主界面
     App()
     
-    // 只在有新版本时显示更新对话框
+    // 只在有新版本时显示更新对话框（包裹在主题中）
     if (updateState is UpdateState.HasUpdate || 
         updateState is UpdateState.Downloading || 
         updateState is UpdateState.Downloaded ||
@@ -51,9 +57,11 @@ actual fun AppWithUpdateCheck(updateViewModel: Any) {
         updateState is UpdateState.Installing ||
         updateState is UpdateState.InstallPermissionRequested ||
         updateState is UpdateState.InstallFailed) {
-        UpdateDialog(
-            onDismiss = { vm.reset() },
-            updateViewModel = vm
-        )
+        com.xmvisio.app.ui.theme.AppTheme(themeSettings = themeSettings) {
+            UpdateDialog(
+                onDismiss = { vm.reset() },
+                updateViewModel = vm
+            )
+        }
     }
 }

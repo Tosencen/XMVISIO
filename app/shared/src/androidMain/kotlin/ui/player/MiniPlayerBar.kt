@@ -1,7 +1,6 @@
 package com.xmvisio.app.ui.player
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -18,7 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,19 +31,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xmvisio.app.audio.LocalAudioFile
-import kotlinx.coroutines.launch
-import kotlin.math.absoluteValue
-import kotlin.math.exp
-import kotlin.math.roundToInt
 
 /**
  * 迷你播放器悬浮条
@@ -67,21 +57,13 @@ fun MiniPlayerBar(
     modifier: Modifier = Modifier,
     isFavorite: Boolean = false
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    
-    val offsetXAnimatable = remember { Animatable(0f) }
-    var dragStartTime by remember { mutableLongStateOf(0L) }
-    var totalDragDistance by remember { mutableFloatStateOf(0f) }
-    
-    val animationSpec = spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessLow
-    )
-
     val overlayAlpha by animateFloatAsState(
         targetValue = if (isPlaying) 0.0f else 0.4f,
         label = "overlay_alpha",
-        animationSpec = animationSpec
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow
+        )
     )
 
     // 无限旋转动画（播放时）
@@ -98,14 +80,6 @@ fun MiniPlayerBar(
         ),
         label = "rotation"
     )
-
-    /**
-     * 计算自动滑动阈值
-     */
-    fun calculateAutoSwipeThreshold(swipeSensitivity: Float): Int {
-        return (600 / (1f + exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
-    }
-    val autoSwipeThreshold = calculateAutoSwipeThreshold(0.73f)
     
     Box(
         modifier = modifier
@@ -117,7 +91,6 @@ fun MiniPlayerBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                 .shadow(
                     elevation = 8.dp,
                     shape = RoundedCornerShape(32.dp),
@@ -127,66 +100,7 @@ fun MiniPlayerBar(
             shape = RoundedCornerShape(32.dp),
             color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = {
-                                dragStartTime = System.currentTimeMillis()
-                                totalDragDistance = 0f
-                            },
-                            onDragCancel = {
-                                coroutineScope.launch {
-                                    offsetXAnimatable.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = animationSpec
-                                    )
-                                }
-                            },
-                            onHorizontalDrag = { _, dragAmount ->
-                                val allowLeft = dragAmount < 0 && canSkipNext
-                                val allowRight = dragAmount > 0 && canSkipPrevious
-                                if (allowLeft || allowRight) {
-                                    totalDragDistance += dragAmount.absoluteValue
-                                    coroutineScope.launch {
-                                        offsetXAnimatable.snapTo(offsetXAnimatable.value + dragAmount)
-                                    }
-                                }
-                            },
-                            onDragEnd = {
-                                val dragDuration = System.currentTimeMillis() - dragStartTime
-                                val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
-                                val currentOffset = offsetXAnimatable.value
-                                
-                                val minDistanceThreshold = 50f
-                                val velocityThreshold = (0.73f * -8.25f) + 8.5f
-                                
-                                val shouldChangeSong = (
-                                    currentOffset.absoluteValue > minDistanceThreshold &&
-                                    velocity > velocityThreshold
-                                ) || (currentOffset.absoluteValue > autoSwipeThreshold)
-                                
-                                if (shouldChangeSong) {
-                                    val isRightSwipe = currentOffset > 0
-                                    
-                                    if (isRightSwipe && canSkipPrevious) {
-                                        onPreviousClick()
-                                    } else if (!isRightSwipe && canSkipNext) {
-                                        onNextClick()
-                                    }
-                                }
-
-                                coroutineScope.launch {
-                                    offsetXAnimatable.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = animationSpec
-                                    )
-                                }
-                            }
-                        )
-                    }
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -336,24 +250,6 @@ fun MiniPlayerBar(
                         )
                     }
                 }
-            }
-        }
-        
-        // 滑动提示图标
-        if (offsetXAnimatable.value.absoluteValue > 50f) {
-            Box(
-                modifier = Modifier
-                    .align(if (offsetXAnimatable.value > 0) Alignment.CenterStart else Alignment.CenterEnd)
-                    .padding(horizontal = 24.dp)
-            ) {
-                Icon(
-                    imageVector = if (offsetXAnimatable.value > 0) Icons.Default.SkipPrevious else Icons.Default.SkipNext,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(
-                        alpha = (offsetXAnimatable.value.absoluteValue / autoSwipeThreshold).coerceIn(0f, 1f)
-                    ),
-                    modifier = Modifier.size(24.dp)
-                )
             }
         }
     }

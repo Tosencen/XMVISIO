@@ -96,10 +96,26 @@ class SleepTimerManager private constructor(private val context: Context) {
         // 暂停全局播放器
         GlobalAudioPlayer.getInstance(context).pause()
         
+        // 显示提示
+        showToast(context, "睡眠定时器已结束")
+        
         // 清除定时器状态
         _endTime.value = null
         _remainingTime.value = null
         timerJob = null
+    }
+    
+    /**
+     * 显示 Toast 提示
+     */
+    private fun showToast(context: Context, message: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            android.widget.Toast.makeText(
+                context,
+                message,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
     }
     
     companion object {

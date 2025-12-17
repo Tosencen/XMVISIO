@@ -136,9 +136,16 @@ class AudioPlayer(private val context: Context) {
                     val sleepTimerManager = SleepTimerManager.getInstance(context)
                     val shouldPauseAtEnd = sleepTimerManager.checkAndPauseAtAudioEnd()
                     
-                    // 如果没有设置音频结束时暂停，则自动播放下一首
-                    if (!shouldPauseAtEnd) {
-                        playNext()
+                    if (shouldPauseAtEnd) {
+                        // 显示提示
+                        showToast("当前音频已播放完成，已自动暂停")
+                    } else {
+                        // 尝试播放下一首
+                        val hasNext = playNext()
+                        if (!hasNext) {
+                            // 没有下一首了，显示提示
+                            showToast("播放列表已全部播放完成")
+                        }
                     }
                 }
                 setOnErrorListener { _, what, extra ->
@@ -313,15 +320,31 @@ class AudioPlayer(private val context: Context) {
     
     /**
      * 播放下一首
+     * @return 是否有下一首
      */
-    private fun playNext() {
-        val currentId = _currentAudioId.value ?: return
+    private fun playNext(): Boolean {
+        val currentId = _currentAudioId.value ?: return false
         val currentIndex = playlistIds.indexOf(currentId)
         
         if (currentIndex >= 0 && currentIndex < playlistIds.size - 1) {
             // 有下一首，通知回调
             val nextId = playlistIds[currentIndex + 1]
             onPlayNextCallback?.invoke(nextId)
+            return true
+        }
+        return false
+    }
+    
+    /**
+     * 显示 Toast 提示
+     */
+    private fun showToast(message: String) {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            android.widget.Toast.makeText(
+                context,
+                message,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
     }
     
