@@ -44,14 +44,17 @@ class AudioFocusManager(
     // 蓝牙耳机断开监听器
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            android.util.Log.d("AudioFocusManager", "收到广播: ${intent?.action}")
             when (intent?.action) {
                 AudioManager.ACTION_AUDIO_BECOMING_NOISY -> {
                     // 音频输出设备断开（如拔出耳机、断开蓝牙）
+                    android.util.Log.d("AudioFocusManager", "音频设备断开，暂停播放")
                     onPause()
                 }
                 AudioManager.ACTION_HEADSET_PLUG -> {
                     // 有线耳机插拔事件
                     val state = intent.getIntExtra("state", -1)
+                    android.util.Log.d("AudioFocusManager", "耳机插拔事件: state=$state")
                     when (state) {
                         0 -> {
                             // 耳机拔出，暂停播放
@@ -118,8 +121,13 @@ class AudioFocusManager(
                 addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
                 addAction(AudioManager.ACTION_HEADSET_PLUG)
             }
-            context.registerReceiver(bluetoothReceiver, filter)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                context.registerReceiver(bluetoothReceiver, filter)
+            }
             isRegistered = true
+            android.util.Log.d("AudioFocusManager", "已注册音频设备监听器")
         }
     }
     

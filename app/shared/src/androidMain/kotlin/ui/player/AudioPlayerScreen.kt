@@ -70,6 +70,7 @@ fun AudioPlayerScreen(
     
     // 对话框状态
     var showSpeedDialog by remember { mutableStateOf(false) }
+    var showVolumeDialog by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
     
@@ -370,9 +371,9 @@ fun AudioPlayerScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
-            // 进度条（带播放速度和睡眠定时器按钮）
+            // 进度条（带播放速度、音量和睡眠定时器按钮）
             ProgressSlider(
                 currentPosition = currentPosition,
                 duration = duration,
@@ -383,11 +384,12 @@ fun AudioPlayerScreen(
                     audioPlayer.seekTo(position)
                 },
                 onSpeedClick = { showSpeedDialog = true },
+                onVolumeClick = { showVolumeDialog = true },
                 onTimerClick = { showSleepTimerDialog = true },
                 onTimerCancel = { sleepTimerManager.cancelTimer() }
             )
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             // 播放控制按钮
             PlaybackControls(
@@ -413,6 +415,13 @@ fun AudioPlayerScreen(
                 audioPlayer.setPlaybackSpeed(speed)
             },
             onDismiss = { showSpeedDialog = false }
+        )
+    }
+    
+    // 音量控制对话框
+    if (showVolumeDialog) {
+        VolumeDialog(
+            onDismiss = { showVolumeDialog = false }
         )
     }
     
@@ -456,7 +465,7 @@ fun AudioPlayerScreen(
 }
 
 /**
- * 进度条组件（带播放速度和睡眠定时器按钮）
+ * 进度条组件（带播放速度、音量和睡眠定时器按钮）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -468,6 +477,7 @@ private fun ProgressSlider(
     isSetToAudioEnd: Boolean,
     onSeek: (Duration) -> Unit,
     onSpeedClick: () -> Unit,
+    onVolumeClick: () -> Unit,
     onTimerClick: () -> Unit,
     onTimerCancel: () -> Unit,
     modifier: Modifier = Modifier
@@ -476,8 +486,25 @@ private fun ProgressSlider(
     val sliderStyleManager = remember { com.xmvisio.app.data.SliderStyleManager.getInstance(context) }
     val sliderStyle by sliderStyleManager.sliderStyle.collectAsState()
     
+    // 获取系统音量
+    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
+    val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) }
+    var currentVolume by remember { mutableIntStateOf(audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)) }
+    
+    // 实时更新音量
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500) // 每500ms更新一次音量
+            currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        }
+    }
+    
+    val volumePercentage = remember(currentVolume) {
+        ((currentVolume.toFloat() / maxVolume) * 100).toInt()
+    }
+    
     Column(modifier = modifier.fillMaxWidth()) {
-        // 播放速度和睡眠定时器按钮
+        // 播放速度、音量和睡眠定时器按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -486,17 +513,34 @@ private fun ProgressSlider(
             // 播放速度按钮
             FilledTonalButton(
                 onClick = onSpeedClick,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Icon(
                     Icons.Default.Speed,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "${playbackSpeed}x",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            
+            // 音量控制按钮 - 显示实时百分比
+            FilledTonalButton(
+                onClick = onVolumeClick,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Icon(
+                    Icons.Default.VolumeUp,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "$volumePercentage%",
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
             
@@ -511,21 +555,21 @@ private fun ProgressSlider(
                         onTimerClick()
                     }
                 },
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Icon(
                     Icons.Default.Timer,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = when {
                         sleepTimerRemaining != null -> formatSleepTimerShort(sleepTimerRemaining)
                         isSetToAudioEnd -> "音频结束"
                         else -> "定时"
                     },
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }

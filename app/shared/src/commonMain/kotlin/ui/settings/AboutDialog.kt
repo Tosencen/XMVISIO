@@ -103,7 +103,7 @@ fun AboutDialog(
                 InfoSection(
                     icon = Icons.Default.Copyright,
                     title = "版权信息",
-                    content = "© 2024 XMVISIO\nMIT License"
+                    content = "© 2025 XMVISIO\nMIT License"
                 )
                 
                 HorizontalDivider()
