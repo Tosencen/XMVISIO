@@ -23,5 +23,5 @@ data class ThemeSettings(
     }
 }
 
-// 默认种子颜色 - 紫色
-val DefaultSeedColor = Color(0xFF6750A4)
+// 默认种子颜色 - 青色（第7个主题色）
+val DefaultSeedColor = Color(0xFF00677F)

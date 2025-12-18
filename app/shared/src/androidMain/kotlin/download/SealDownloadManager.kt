@@ -111,13 +111,17 @@ class SealDownloadManager private constructor(
             val response = YoutubeDL.getInstance().execute(infoRequest)
             val videoInfo = response.out
             
-            // 解析标题（简化版，实际应该解析 JSON）
+            // 解析视频信息
             val title = extractTitle(videoInfo) ?: "未知标题"
+            val duration = extractDuration(videoInfo)
+            val fileSize = extractFileSize(videoInfo)
             
             updateTask(taskId) {
                 it.copy(
                     title = title,
-                    status = DownloadStatus.DOWNLOADING
+                    status = DownloadStatus.DOWNLOADING,
+                    duration = duration,
+                    fileSize = fileSize
                 )
             }
             
@@ -344,6 +348,30 @@ class SealDownloadManager private constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract title", e)
             null
+        }
+    }
+    
+    private fun extractDuration(json: String): Long {
+        return try {
+            // 提取 "duration": 123 或 "duration": 123.45
+            val durationRegex = "\"duration\"\\s*:\\s*([0-9.]+)".toRegex()
+            val match = durationRegex.find(json)
+            match?.groupValues?.get(1)?.toDoubleOrNull()?.toLong() ?: 0
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract duration", e)
+            0
+        }
+    }
+    
+    private fun extractFileSize(json: String): Long {
+        return try {
+            // 提取 "filesize" 或 "filesize_approx"
+            val fileSizeRegex = "\"filesize(?:_approx)?\"\\s*:\\s*([0-9]+)".toRegex()
+            val match = fileSizeRegex.find(json)
+            match?.groupValues?.get(1)?.toLongOrNull() ?: 0
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract file size", e)
+            0
         }
     }
     
