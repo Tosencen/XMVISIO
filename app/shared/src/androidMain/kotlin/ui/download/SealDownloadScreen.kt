@@ -5,16 +5,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.xmvisio.app.download.DownloadStatus
 import com.xmvisio.app.download.DownloadTask
+import com.xmvisio.app.download.DownloadType
 import com.xmvisio.app.download.IDownloadManager
+import com.xmvisio.app.download.YtDlpAutoUpdater
 import com.xmvisio.app.download.YtDlpUpdateStatus
 import kotlinx.coroutines.launch
 
@@ -25,8 +27,8 @@ fun SealDownloadScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val downloads by downloadManager.downloads.collectAsState()
-    var hasPermission by remember { mutableStateOf(downloadManager.hasStoragePermission()) }
     
     var showAddDialog by remember { mutableStateOf(false) }
     var urlInput by remember { mutableStateOf("") }
@@ -37,11 +39,21 @@ fun SealDownloadScreen(
     var updateMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     
+    // 自动检查 yt-dlp 更新（每周一次）
+    val autoUpdater = remember { YtDlpAutoUpdater(context) }
+    LaunchedEffect(Unit) {
+        autoUpdater.checkAndUpdateIfNeeded(downloadManager)
+    }
+    
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         topBar = {
             TopAppBar(
                 title = { Text("下载") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                ),
                 actions = {
                     // 菜单按钮
                     Box {
@@ -70,7 +82,7 @@ fun SealDownloadScreen(
                                 onClick = { },
                                 enabled = false
                             )
-                            Divider()
+                            HorizontalDivider()
                             // 更新 yt-dlp
                             DropdownMenuItem(
                                 text = {
@@ -140,9 +152,13 @@ fun SealDownloadScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                Icon(Icons.Default.Download, contentDescription = "添加下载")
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = "添加下载"
+                )
             }
         }
     ) { paddingValues ->
@@ -155,35 +171,23 @@ fun SealDownloadScreen(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Icon(
                         Icons.Default.Download,
                         contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                     Text(
                         "暂无下载任务",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Text(
-                        "点击 + 按钮添加下载",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "支持 YouTube, SoundCloud 等平台",
+                        "点击右下角按钮添加下载",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "文件将保存到应用存储目录",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -235,6 +239,17 @@ fun SealDownloadScreen(
                         enabled = !isDownloading,
                         singleLine = false,
                         maxLines = 3,
+                        trailingIcon = {
+                            if (urlInput.isNotEmpty() && !isDownloading) {
+                                IconButton(onClick = { urlInput = "" }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "清除",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        },
                         supportingText = {
                             if (urlInput.isNotEmpty() && !com.xmvisio.app.util.UrlUtil.containsUrl(urlInput)) {
                                 Text(
@@ -263,7 +278,9 @@ fun SealDownloadScreen(
                             leadingIcon = if (selectedType == com.xmvisio.app.download.DownloadType.AUDIO) {
                                 { Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp)) }
                             } else null,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
                         )
                         FilterChip(
                             selected = selectedType == com.xmvisio.app.download.DownloadType.VIDEO,
@@ -272,7 +289,9 @@ fun SealDownloadScreen(
                             leadingIcon = if (selectedType == com.xmvisio.app.download.DownloadType.VIDEO) {
                                 { Icon(Icons.Default.VideoLibrary, contentDescription = null, modifier = Modifier.size(18.dp)) }
                             } else null,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
                         )
                     }
                     
@@ -369,118 +388,272 @@ fun DownloadTaskCard(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val context = LocalContext.current
+    
+    ElevatedCard(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when (task.status) {
-                DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                DownloadStatus.FAILED -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                else -> MaterialTheme.colorScheme.surfaceVariant
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = 0.dp
+        ),
+        onClick = {
+            // 仅当下载完成且是音频类型时可点击播放
+            if (task.status == DownloadStatus.COMPLETED && 
+                task.downloadType == DownloadType.AUDIO && 
+                task.filePath != null) {
+                try {
+                    // 使用系统默认播放器打开音频文件
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        val uri = if (task.filePath.startsWith("content://")) {
+                            android.net.Uri.parse(task.filePath)
+                        } else {
+                            android.net.Uri.parse("file://${task.filePath}")
+                        }
+                        setDataAndType(uri, "audio/*")
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("DownloadTaskCard", "Failed to play audio", e)
+                }
             }
-        )
+        }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                // 左侧：封面
+                Box(
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (task.downloadType == DownloadType.VIDEO) {
+                                    Icons.Default.VideoLibrary
+                                } else {
+                                    Icons.Default.AudioFile
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+            
+                // 中间：信息
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp),  // 与封面高度一致，确保卡片高度统一
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // 标题
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.titleMedium,
-                        maxLines = 2
+                        color = contentColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
+                
+                    // 作者
                     if (task.author != null) {
                         Text(
                             text = task.author,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = contentColor.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                
+                    // 状态行
+                    Row(
+                        modifier = Modifier.height(32.dp),  // 固定高度统一所有状态
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        when (task.status) {
+                            DownloadStatus.COMPLETED -> {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "完成",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "下载完成",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                // 时长和大小
+                                if (task.duration > 0 || task.fileSize > 0) {
+                                    Text(
+                                        text = "•",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = contentColor.copy(alpha = 0.5f)
+                                    )
+                                    if (task.duration > 0) {
+                                        val minutes = task.duration / 60
+                                        val seconds = task.duration % 60
+                                        Text(
+                                            text = "${minutes}:${seconds.toString().padStart(2, '0')}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = contentColor.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    if (task.duration > 0 && task.fileSize > 0) {
+                                        Text(
+                                            text = "•",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = contentColor.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                    if (task.fileSize > 0) {
+                                        val sizeMB = task.fileSize / (1024f * 1024f)
+                                        Text(
+                                            text = "${"%.1f".format(sizeMB)} MB",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = contentColor.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+                            }
+                            DownloadStatus.FAILED -> {
+                                Icon(
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = "错误",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = task.errorMessage ?: "下载失败",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            DownloadStatus.CANCELLED -> {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = "已取消",
+                                    tint = contentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "已取消",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = contentColor.copy(alpha = 0.8f)
+                                )
+                            }
+                            DownloadStatus.PENDING -> {
+                                Text(
+                                    text = "等待中...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = contentColor.copy(alpha = 0.8f)
+                                )
+                            }
+                            DownloadStatus.EXTRACTING -> {
+                                Text(
+                                    text = "正在解析视频信息...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = contentColor.copy(alpha = 0.8f)
+                                )
+                            }
+                            DownloadStatus.DOWNLOADING -> {
+                                val percentage = (task.progress * 100).toInt().coerceAtLeast(0)
+                                val statusText = if (task.totalBytes > 0) {
+                                    val downloadedMB = task.downloadedBytes / (1024f * 1024f)
+                                    val totalMB = task.totalBytes / (1024f * 1024f)
+                                    "$percentage% • ${"%.1f".format(downloadedMB)}/${"%.1f".format(totalMB)} MB"
+                                } else if (percentage > 0) {
+                                    "$percentage%"
+                                } else {
+                                    "正在下载..."
+                                }
+                                Text(
+                                    text = statusText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = contentColor.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    
+                        // 取消按钮
+                        if (task.status == DownloadStatus.DOWNLOADING || 
+                            task.status == DownloadStatus.PENDING ||
+                            task.status == DownloadStatus.EXTRACTING) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            TextButton(
+                                onClick = onCancel,
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = contentColor
+                                ),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("取消", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 进度条（在卡片底部）- 所有状态都保留4dp高度以统一卡片高度
+            when {
+                task.status == DownloadStatus.DOWNLOADING -> {
+                    val progress = task.progress.coerceIn(0f, 1f)
+                    if (progress > 0) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                         )
                     }
                 }
-                
-                IconButton(
-                    onClick = onCancel,
-                    enabled = task.status == DownloadStatus.DOWNLOADING || 
-                             task.status == DownloadStatus.PENDING ||
-                             task.status == DownloadStatus.EXTRACTING
-                ) {
-                    Icon(
-                        when (task.status) {
-                            DownloadStatus.COMPLETED -> Icons.Default.CheckCircle
-                            DownloadStatus.FAILED -> Icons.Default.Error
-                            DownloadStatus.CANCELLED -> Icons.Default.Cancel
-                            else -> Icons.Default.Close
-                        },
-                        contentDescription = "操作",
-                        tint = when (task.status) {
-                            DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primary
-                            DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
+                task.status == DownloadStatus.EXTRACTING || task.status == DownloadStatus.PENDING -> {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     )
                 }
-            }
-            
-            // 状态文本
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                val statusText = when (task.status) {
-                    DownloadStatus.PENDING -> "等待中..."
-                    DownloadStatus.EXTRACTING -> "正在解析视频信息..."
-                    DownloadStatus.DOWNLOADING -> {
-                        val percentage = (task.progress * 100).toInt().coerceAtLeast(0)
-                        if (task.totalBytes > 0) {
-                            val downloadedMB = task.downloadedBytes / (1024f * 1024f)
-                            val totalMB = task.totalBytes / (1024f * 1024f)
-                            "下载中 $percentage% (${"%.1f".format(downloadedMB)} MB / ${"%.1f".format(totalMB)} MB)"
-                        } else if (percentage > 0) {
-                            "下载中 $percentage%"
-                        } else {
-                            "正在下载..."
-                        }
-                    }
-                    DownloadStatus.COMPLETED -> "✓ 下载完成"
-                    DownloadStatus.FAILED -> "✗ ${task.errorMessage ?: "下载失败"}"
-                    DownloadStatus.CANCELLED -> "已取消"
+                else -> {
+                    // 完成/失败/取消状态：使用透明占位保持高度一致
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
-                
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = when (task.status) {
-                        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-                        DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    }
-                )
-                
-                // 显示文件保存位置
-                if (task.status == DownloadStatus.COMPLETED && task.filePath != null) {
-                    Text(
-                        text = "保存位置: ${task.filePath}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        maxLines = 2
-                    )
-                }
-            }
-            
-            // 进度条
-            if (task.status == DownloadStatus.DOWNLOADING) {
-                LinearProgressIndicator(
-                    progress = { task.progress },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else if (task.status == DownloadStatus.EXTRACTING || task.status == DownloadStatus.PENDING) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }

@@ -13,7 +13,9 @@ data class DownloadTask(
     val filePath: String? = null,
     val errorMessage: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val downloadType: DownloadType = DownloadType.AUDIO  // 下载类型
+    val downloadType: DownloadType = DownloadType.AUDIO,  // 下载类型
+    val duration: Long = 0,  // 时长（秒）
+    val fileSize: Long = 0   // 文件大小（字节）
 )
 
 enum class DownloadStatus {
