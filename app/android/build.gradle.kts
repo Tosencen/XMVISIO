@@ -20,6 +20,20 @@ android {
         // GitHub Token (可选，从 local.properties 读取)
         val githubToken = project.findProperty("github.token") as String? ?: ""
         buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
+        
+        // 只支持 arm64-v8a 架构（减小 APK 体积）
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
+    }
+    
+    // 确保 youtubedl-android 的 native 库被正确打包
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            // 保留所有 native 库，包括 libc++_shared.so
+            pickFirsts.add("lib/*/libc++_shared.so")
+        }
     }
     
     buildFeatures {
@@ -70,4 +84,9 @@ dependencies {
     
     // Lottie 动画
     implementation("com.airbnb.android:lottie-compose:6.1.0")
+    
+    // YoutubeDL Android (Seal's fork) - 视频/音频下载
+    implementation(libs.youtubedl.android.library)
+    implementation(libs.youtubedl.android.ffmpeg)
+    implementation(libs.youtubedl.android.aria2c)
 }

@@ -78,6 +78,7 @@ mockito = "5.12.0"
 mockito-kotlin = "5.4.0"
 sentry-kmp = "0.12.0" # used in plugins, don't remove # https://mvnrepository.com/artifact/io.sentry/sentry-kotlin-multiplatform-gradle-plugin
 sentry-compose-android = "8.23.0" # https://docs.sentry.io/platforms/android/integrations/jetpack-compose/
+youtubedl-android = "0.17.3" # Seal's fork: https://github.com/JunkFood02/youtubedl-android
 gitlive-firebase = "2.3.0"
 google-firebase = "22.0.1"
 posthog-android = "3.11.3"
@@ -270,3 +271,8 @@ google-firebase-common = { module = "com.google.firebase:firebase-common", versi
 google-firebase-analytics = { module = "com.google.firebase:firebase-analytics", version.ref = "google-firebase" }
 posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthog-android" }
 posthog-java = { module = "com.posthog.java:posthog", version.ref = "posthog-java" }
+
+# YoutubeDL Android (Seal's fork)
+youtubedl-android-library = { module = "io.github.junkfood02.youtubedl-android:library", version.ref = "youtubedl-android" }
+youtubedl-android-ffmpeg = { module = "io.github.junkfood02.youtubedl-android:ffmpeg", version.ref = "youtubedl-android" }
+youtubedl-android-aria2c = { module = "io.github.junkfood02.youtubedl-android:aria2c", version.ref = "youtubedl-android" }
