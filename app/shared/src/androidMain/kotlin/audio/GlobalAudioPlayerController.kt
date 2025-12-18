@@ -86,6 +86,8 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
                     audioId = previousAudio.id,
                     onPrepared = {
                         audioPlayer.play()
+                        // 确保播放开始后更新通知
+                        updateNotification()
                     }
                 )
             }
@@ -111,6 +113,8 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
                     audioId = nextAudio.id,
                     onPrepared = {
                         audioPlayer.play()
+                        // 确保播放开始后更新通知
+                        updateNotification()
                     }
                 )
             }

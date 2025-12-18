@@ -43,3 +43,13 @@
 -renamesourcefileattribute SourceFile
 -keepnames class me.him188.ani.** { *; }
 -keepnames class ** { *; } # Keep all names as this only increases pacakge size by a few MBs, but significantly helps with debugging.
+
+# Keep media service classes for XMVISIO
+-keep class com.xmvisio.app.media.** { *; }
+-keep class com.xmvisio.app.audio.AudioManager { *; }
+-keep class com.xmvisio.app.audio.AudioOperationResult { *; }
+-keep class com.xmvisio.app.audio.AudioOperationResult$* { *; }
+
+# Keep Activity Result API classes
+-keep class androidx.activity.result.** { *; }
+-keep class androidx.activity.ComponentActivity { *; }
