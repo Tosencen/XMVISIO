@@ -19,7 +19,7 @@
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone repository-url
 
 # 配置 Android SDK
 echo "sdk.dir=/path/to/Android/sdk"  local.properties
