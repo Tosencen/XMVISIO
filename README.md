@@ -22,7 +22,7 @@
 git clone <repository-url>
 
 # 配置 Android SDK
-echo "sdk.dir=/path/to/Android/sdk" > local.properties
+echo "sdk.dir=/path/to/Android/sdk"  local.properties
 
 # 构建 Debug APK
 ./gradlew :app:android:assembleDebug
