@@ -75,4 +75,21 @@ class AudioManager(private val context: Context) {
             AudioOperationResult.Failed
         }
     }
+    
+    /**
+     * 批量删除音频文件
+     */
+    suspend fun deleteAudioBatch(uris: List<Uri>): AudioOperationResult = withContext(Dispatchers.IO) {
+        try {
+            val success = getMediaService().deleteMedia(uris)
+            if (success) {
+                AudioOperationResult.Success
+            } else {
+                AudioOperationResult.Failed
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AudioManager", "批量删除失败", e)
+            AudioOperationResult.Failed
+        }
+    }
 }
