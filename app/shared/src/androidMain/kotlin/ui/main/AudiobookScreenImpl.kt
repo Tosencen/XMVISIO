@@ -277,7 +277,9 @@ internal fun AudiobookScreenImpl(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize(),
         topBar = {
-            Column {
+            Column(
+                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            ) {
                 TopAppBar(
                     title = {
                         if (isSearching) {

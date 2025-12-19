@@ -40,21 +40,28 @@ expect fun AppWithUpdateCheck(updateViewModel: Any, openPlayerAudioId: Long? = n
 @Composable
 fun App(openPlayerAudioId: Long? = null) {
     val themeSettingsManager = remember { com.xmvisio.app.data.createThemeSettingsManager() }
-    val themeSettings by themeSettingsManager.themeSettings.collectAsState(
-        initial = com.xmvisio.app.data.ThemeSettings.Default
-    )
+    
+    // 使用 produceState 确保在主题加载完成前不渲染 UI，避免颜色闪烁
+    val themeSettings by produceState<com.xmvisio.app.data.ThemeSettings?>(initialValue = null) {
+        themeSettingsManager.themeSettings.collect { settings ->
+            value = settings
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
     
-    AppTheme(themeSettings = themeSettings) {
-        // 配置系统栏颜色
+    // 主题未加载完成时不渲染，避免从后台恢复时颜色闪烁
+    val currentThemeSettings = themeSettings ?: return
+    
+    AppTheme(themeSettings = currentThemeSettings) {
+        // 配置系统栏颜色（统一配置点）
         com.xmvisio.app.ui.ConfigureSystemBars(
-            isDark = when (themeSettings.darkMode) {
+            isDark = when (currentThemeSettings.darkMode) {
                 com.xmvisio.app.data.DarkMode.LIGHT -> false
                 com.xmvisio.app.data.DarkMode.DARK -> true
                 com.xmvisio.app.data.DarkMode.AUTO -> androidx.compose.foundation.isSystemInDarkTheme()
             },
-            statusBarColor = androidx.compose.ui.graphics.Color.Transparent,
-            navigationBarColor = MaterialTheme.colorScheme.surfaceContainer
+            statusBarColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            navigationBarColor = androidx.compose.ui.graphics.Color.Transparent
         )
         
         val navController = rememberNavController()
@@ -81,7 +88,7 @@ fun App(openPlayerAudioId: Long? = null) {
                 }
                 composable("theme_settings") {
                     com.xmvisio.app.ui.settings.ThemeSettingsPage(
-                        themeSettings = themeSettings,
+                        themeSettings = currentThemeSettings,
                         onThemeChange = { newSettings ->
                             coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 themeSettingsManager.saveThemeSettings(newSettings)

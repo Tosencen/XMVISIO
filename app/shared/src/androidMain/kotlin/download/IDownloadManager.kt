@@ -8,6 +8,7 @@ interface IDownloadManager {
     suspend fun startDownload(url: String, downloadType: DownloadType = DownloadType.AUDIO): Result<String>
     fun cancelDownload(taskId: String)
     fun removeDownload(taskId: String)  // 移除单个下载记录
+    suspend fun retryDownload(taskId: String)  // 重试失败的下载
     fun hasStoragePermission(): Boolean
     fun requestStoragePermission()
     

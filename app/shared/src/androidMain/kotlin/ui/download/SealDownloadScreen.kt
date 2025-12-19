@@ -246,7 +246,8 @@ fun SealDownloadScreen(
                     DownloadTaskCard(
                         task = task,
                         onCancel = { downloadManager.cancelDownload(task.id) },
-                        onDismiss = { downloadManager.removeDownload(task.id) }
+                        onDismiss = { downloadManager.removeDownload(task.id) },
+                        onRetry = { scope.launch { downloadManager.retryDownload(task.id) } }
                     )
                 }
             }
@@ -432,6 +433,7 @@ fun DownloadTaskCard(
     task: DownloadTask,
     onCancel: () -> Unit,
     onDismiss: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -479,6 +481,7 @@ fun DownloadTaskCard(
             DownloadTaskCardContent(
                 task = task,
                 onCancel = onCancel,
+                onRetry = onRetry,
                 contentColor = contentColor,
                 context = context
             )
@@ -487,6 +490,7 @@ fun DownloadTaskCard(
         DownloadTaskCardContent(
             task = task,
             onCancel = onCancel,
+            onRetry = onRetry,
             contentColor = contentColor,
             context = context,
             modifier = modifier
@@ -498,6 +502,7 @@ fun DownloadTaskCard(
 private fun DownloadTaskCardContent(
     task: DownloadTask,
     onCancel: () -> Unit,
+    onRetry: () -> Unit,
     contentColor: androidx.compose.ui.graphics.Color,
     context: android.content.Context,
     modifier: Modifier = Modifier
@@ -534,35 +539,36 @@ private fun DownloadTaskCardContent(
         }
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 左侧：封面
-                Box(
-                    modifier = Modifier.size(56.dp)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.primaryContainer
+                    // 左侧：封面
+                    Box(
+                        modifier = Modifier.size(56.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (task.downloadType == DownloadType.VIDEO) {
-                                    Icons.Default.VideoLibrary
-                                } else {
-                                    Icons.Default.AudioFile
-                                },
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (task.downloadType == DownloadType.VIDEO) {
+                                        Icons.Default.VideoLibrary
+                                    } else {
+                                        Icons.Default.AudioFile
+                                    },
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
-                }
-                Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
             
                 // 中间：信息
                 Column(
@@ -725,6 +731,25 @@ private fun DownloadTaskCardContent(
                                 Text("取消", style = MaterialTheme.typography.labelSmall)
                             }
                         }
+                    }
+                }
+                }
+                
+                // 右上角重试按钮（仅在下载失败时显示）
+                if (task.status == DownloadStatus.FAILED) {
+                    IconButton(
+                        onClick = onRetry,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "重试下载",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
