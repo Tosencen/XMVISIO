@@ -8,6 +8,23 @@
 - 📥 在线视频/音频下载（基于 yt-dlp）
 - 🎨 Material 3 主题，支持浅色/深色模式
 - 📱 Android 原生应用
+- ✅ 批量选择与批量操作
+- 🗂️ 音频分类管理
+- 🗑️ 批量删除功能
+
+## 📸 应用截图
+
+<div align="center">
+  <img src="screenshots/1.jpg" width="200" alt="主界面" />
+  <img src="screenshots/2.jpg" width="200" alt="批量选择" />
+  <img src="screenshots/3.jpg" width="200" alt="批量操作" />
+</div>
+
+<div align="center">
+  <img src="screenshots/4.jpg" width="200" alt="分类管理" />
+  <img src="screenshots/5.jpg" width="200" alt="音频播放" />
+  <img src="screenshots/6.jpg" width="200" alt="设置界面" />
+</div>
 
 ## 📋 环境要求
 
