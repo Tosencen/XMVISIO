@@ -77,3 +77,34 @@ private fun applyBlackBackground(
 actual fun isPlatformSupportDynamicTheme(): Boolean {
     return true
 }
+
+/**
+ * 非 Composable 版本的 getColorScheme，用于 MainActivity
+ */
+fun getColorScheme(
+    context: android.content.Context,
+    seedColor: Color,
+    useDynamicTheme: Boolean,
+    useBlackBackground: Boolean,
+    isDark: Boolean
+): ColorScheme {
+    // Android 12+ 系统动态主题（从壁纸提取）
+    if (useDynamicTheme && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val scheme = if (isDark) {
+            dynamicDarkColorScheme(context)
+        } else {
+            dynamicLightColorScheme(context)
+        }
+        return applyBlackBackground(scheme, isDark, useBlackBackground)
+    }
+    
+    // Android 12 以下或未启用动态主题：使用 Material Kolor 从种子颜色生成配色
+    val scheme = dynamicColorScheme(
+        seedColor = seedColor,
+        isDark = isDark,
+        isAmoled = useBlackBackground,
+        style = PaletteStyle.TonalSpot,
+    )
+    
+    return applyBlackBackground(scheme, isDark, useBlackBackground)
+}

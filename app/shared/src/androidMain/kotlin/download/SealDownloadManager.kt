@@ -345,6 +345,16 @@ class SealDownloadManager private constructor(
         _downloads.value = _downloads.value.filter { it.id != taskId }
     }
     
+    override suspend fun retryDownload(taskId: String) {
+        val task = _downloads.value.find { it.id == taskId } ?: return
+        if (task.status != DownloadStatus.FAILED) return
+        
+        // 移除旧的失败任务
+        removeDownload(taskId)
+        // 重新开始下载
+        startDownload(task.url, task.downloadType)
+    }
+    
     override fun clearCompletedDownloads() {
         _downloads.value = _downloads.value.filter { task ->
             task.status != DownloadStatus.COMPLETED

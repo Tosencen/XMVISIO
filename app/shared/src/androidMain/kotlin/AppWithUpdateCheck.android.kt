@@ -17,11 +17,13 @@ actual fun AppWithUpdateCheck(updateViewModel: Any, openPlayerAudioId: Long?) {
     val context = LocalContext.current
     val updateState by vm.updateState.collectAsState()
     
-    // 获取主题设置
+    // 获取主题设置（使用 produceState 避免颜色闪烁）
     val themeSettingsManager = remember { com.xmvisio.app.data.createThemeSettingsManager() }
-    val themeSettings by themeSettingsManager.themeSettings.collectAsState(
-        initial = com.xmvisio.app.data.ThemeSettings.Default
-    )
+    val themeSettings by produceState<com.xmvisio.app.data.ThemeSettings?>(initialValue = null) {
+        themeSettingsManager.themeSettings.collect { settings ->
+            value = settings
+        }
+    }
     
     // 获取当前版本
     val currentVersion = remember {
@@ -57,7 +59,9 @@ actual fun AppWithUpdateCheck(updateViewModel: Any, openPlayerAudioId: Long?) {
         updateState is UpdateState.Installing ||
         updateState is UpdateState.InstallPermissionRequested ||
         updateState is UpdateState.InstallFailed) {
-        com.xmvisio.app.ui.theme.AppTheme(themeSettings = themeSettings) {
+        // 只有主题加载完成后才显示更新对话框
+        val currentThemeSettings = themeSettings ?: return
+        com.xmvisio.app.ui.theme.AppTheme(themeSettings = currentThemeSettings) {
             UpdateDialog(
                 onDismiss = { vm.reset() },
                 updateViewModel = vm
