@@ -112,6 +112,12 @@ internal fun AudiobookScreenImpl(
     var isReorderMode by remember { mutableStateOf(false) }
     val audioOrderManager = remember { com.xmvisio.app.audio.AudioOrderManager(context) }
     
+    // 批量选择状态
+    var batchSelectionState by remember { mutableStateOf(com.xmvisio.app.audio.BatchSelectionState()) }
+    
+    // 批量删除确认对话框状态
+    var showBatchDeleteDialog by remember { mutableStateOf(false) }
+    
     // 存储每个分类的排序列表 - 避免页面切换时重新加载
     val categorySortedListsCache = remember { mutableStateMapOf<String, List<LocalAudioFile>>() }
     
@@ -129,6 +135,11 @@ internal fun AudiobookScreenImpl(
         val newCategory = categories.getOrNull(pagerState.currentPage)
         if (newCategory != null && newCategory.id != selectedCategory.id) {
             selectedCategory = newCategory
+            
+            // 切换分类时清除批量选择状态
+            if (batchSelectionState.isActive) {
+                batchSelectionState = batchSelectionState.clearSelection()
+            }
         }
     }
     
@@ -266,16 +277,23 @@ internal fun AudiobookScreenImpl(
         isReorderMode = false
     }
     
+    // 返回键处理：在批量选择模式下按返回键退出批量选择模式
+    BackHandler(enabled = batchSelectionState.isActive) {
+        batchSelectionState = batchSelectionState.exitMode()
+    }
+    
     // 最近播放管理器
     val recentPlayManager = remember { RecentPlayManager.getInstance(context) }
     val recentAudioId by recentPlayManager.recentAudioId.collectAsState()
     
-    // Snackbar 状态
-    val snackbarHostState = remember { SnackbarHostState() }
+    // Toast 状态
+    val toastViewModel = remember { com.xmvisio.app.ui.components.ToastViewModel() }
+    val toastShowing by toastViewModel.showing.collectAsState()
+    val toastContent by toastViewModel.content.collectAsState()
     
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier.fillMaxSize(),
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
         topBar = {
             Column(
                 modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest)
@@ -312,17 +330,51 @@ internal fun AudiobookScreenImpl(
                     },
                     actions = {
                         if (!isSearching && permissionStatus == PermissionStatus.GRANTED) {
-                            // 排序按钮
+                            // 批量选择按钮
                             IconButton(
-                                onClick = { isReorderMode = !isReorderMode }
+                                onClick = {
+                                    if (batchSelectionState.isActive) {
+                                        batchSelectionState = batchSelectionState.exitMode()
+                                    } else {
+                                        // 进入批量选择模式时，退出排序模式
+                                        if (isReorderMode) {
+                                            isReorderMode = false
+                                        }
+                                        batchSelectionState = batchSelectionState.copy(isActive = true)
+                                    }
+                                }
                             ) {
                                 Icon(
-                                    if (isReorderMode) Icons.Default.Check else Icons.Default.Sort,
-                                    if (isReorderMode) "完成排序" else "排序"
+                                    if (batchSelectionState.isActive) Icons.Default.Close else Icons.Default.Checklist,
+                                    if (batchSelectionState.isActive) "取消选择" else "批量选择"
                                 )
                             }
                             
-                            IconButton(onClick = { isSearching = true }) {
+                            // 排序按钮（批量选择模式下禁用）
+                            if (!batchSelectionState.isActive) {
+                                IconButton(
+                                    onClick = { 
+                                        // 进入排序模式时退出批量选择模式
+                                        if (batchSelectionState.isActive) {
+                                            batchSelectionState = batchSelectionState.exitMode()
+                                        }
+                                        isReorderMode = !isReorderMode 
+                                    }
+                                ) {
+                                    Icon(
+                                        if (isReorderMode) Icons.Default.Check else Icons.Default.Sort,
+                                        if (isReorderMode) "完成排序" else "排序"
+                                    )
+                                }
+                            }
+                            
+                            IconButton(onClick = { 
+                                // 进入搜索时退出批量选择模式
+                                if (batchSelectionState.isActive) {
+                                    batchSelectionState = batchSelectionState.exitMode()
+                                }
+                                isSearching = true 
+                            }) {
                                 Icon(Icons.Default.Search, "搜索")
                             }
                             
@@ -693,9 +745,14 @@ internal fun AudiobookScreenImpl(
                                                 isReorderMode = isReorderMode,
                                                 isDragging = isDragging,
                                                 dragHandleModifier = Modifier.draggableHandle(),
+                                                isBatchSelectionMode = batchSelectionState.isActive,
+                                                isSelected = batchSelectionState.isSelected(audio.id),
                                                 onCardClick = {
-                                                    if (!isReorderMode) {
-                                                        // 记录最近播放
+                                                    if (batchSelectionState.isActive) {
+                                                        // 批量选择模式：切换选中状态
+                                                        batchSelectionState = batchSelectionState.toggleSelection(audio.id)
+                                                    } else if (!isReorderMode) {
+                                                        // 正常模式：播放音频
                                                         scope.launch {
                                                             recentPlayManager.recordRecentPlay(audio.id, audio.title)
                                                         }
@@ -703,7 +760,7 @@ internal fun AudiobookScreenImpl(
                                                     }
                                                 },
                                                 onLongClick = {
-                                                    if (!isReorderMode) {
+                                                    if (!isReorderMode && !batchSelectionState.isActive) {
                                                         selectedAudio = audio
                                                         showContextMenu = true
                                                     }
@@ -735,6 +792,57 @@ internal fun AudiobookScreenImpl(
                 }
             }
             
+            // 批量选择底部面板
+            if (batchSelectionState.hasSelection && permissionStatus == PermissionStatus.GRANTED) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .zIndex(1000f)
+                ) {
+                    com.xmvisio.app.ui.audiobook.BatchSelectionBottomPanel(
+                        visible = batchSelectionState.hasSelection,
+                        selectedCount = batchSelectionState.selectionCount,
+                        categories = categories.filter { it.id != AudioCategory.ALL.id },
+                        onCategoryClick = { category ->
+                            scope.launch {
+                                // 保存选中的音频ID、数量和分类名称
+                                val selectedIds = batchSelectionState.selectedAudioIds.toList()
+                                val count = batchSelectionState.selectionCount
+                                val categoryName = category.name
+                                
+                                // 立即退出批量选择模式
+                                batchSelectionState = batchSelectionState.exitMode()
+                                
+                                // 执行批量分类操作
+                                val result = categoryManager.setAudioCategoryBatch(
+                                    audioIds = selectedIds,
+                                    categoryId = category.id
+                                )
+                                
+                                // 刷新分类映射
+                                categoryMappingVersion++
+                                
+                                if (result.isSuccess) {
+                                    // 显示成功提示（1秒）
+                                    toastViewModel.show("已将 $count 个音频添加到「$categoryName」", scope)
+                                } else {
+                                    // 显示失败提示
+                                    toastViewModel.show("操作失败，请重试", scope)
+                                }
+                            }
+                        },
+                        onDeleteClick = {
+                            // 显示批量删除确认对话框
+                            showBatchDeleteDialog = true
+                        },
+                        onClose = {
+                            batchSelectionState = batchSelectionState.exitMode()
+                        }
+                    )
+                }
+            }
+            
             // 悬浮的 MiniPlayerBar
             val globalPlayer = remember { com.xmvisio.app.audio.GlobalAudioPlayer.getInstance(context) }
             val globalController = remember { com.xmvisio.app.audio.GlobalAudioPlayerController.getInstance(context) }
@@ -757,7 +865,8 @@ internal fun AudiobookScreenImpl(
             val displayAudioId = currentPlayingAudioId ?: recentAudioId
             val playingAudio = controllerCurrentAudio ?: audioList.find { it.id == displayAudioId }
             
-            if (playingAudio != null && !isSearching && !isReorderMode && permissionStatus == PermissionStatus.GRANTED) {
+            // MiniPlayerBar 在批量选择模式下隐藏
+            if (playingAudio != null && !isSearching && !isReorderMode && !batchSelectionState.isActive && permissionStatus == PermissionStatus.GRANTED) {
                 // 使用 GlobalAudioPlayerController 的播放列表来判断上一首/下一首
                 val controllerPlaylist by globalController.playlist.collectAsState()
                 val currentIndex = controllerPlaylist.indexOfFirst { it.id == currentPlayingAudioId }
@@ -1454,6 +1563,68 @@ internal fun AudiobookScreenImpl(
             onDismiss = { showAutoRewindDialog = false }
         )
     }
+    
+    // 批量删除确认对话框
+    if (showBatchDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showBatchDeleteDialog = false },
+            title = { Text("批量删除") },
+            text = { 
+                Text("确定要删除选中的 ${batchSelectionState.selectionCount} 个音频吗？此操作无法撤销。") 
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            // 保存选中的音频信息
+                            val selectedIds = batchSelectionState.selectedAudioIds.toList()
+                            val count = batchSelectionState.selectionCount
+                            val selectedAudios = audioList.filter { it.id in selectedIds }
+                            val uris = selectedAudios.map { it.uri }
+                            
+                            // 关闭对话框并立即退出批量选择模式
+                            showBatchDeleteDialog = false
+                            batchSelectionState = batchSelectionState.exitMode()
+                            
+                            // 执行批量删除
+                            when (val result = audioManager.deleteAudioBatch(uris)) {
+                                is AudioOperationResult.Success -> {
+                                    // 从列表中移除已删除的音频
+                                    audioList = audioList.filter { it.id !in selectedIds }
+                                    
+                                    // 显示成功提示
+                                    toastViewModel.show("已删除 $count 个音频", scope)
+                                }
+                                is AudioOperationResult.NeedPermission -> {
+                                    // Android 10+ 需要用户确认
+                                    val request = IntentSenderRequest.Builder(result.intentSender).build()
+                                    intentSenderLauncher.launch(request)
+                                }
+                                is AudioOperationResult.Failed -> {
+                                    // 显示失败提示
+                                    toastViewModel.show("删除失败，请重试", scope)
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatchDeleteDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+        
+        // Toast 提示（最顶层显示）
+        com.xmvisio.app.ui.components.ToastContent(
+            showing = { toastShowing },
+            content = { Text(toastContent) }
+        )
+    }
 }
 
 /**
@@ -1468,7 +1639,9 @@ private fun AudioItem(
     dragHandleModifier: Modifier,
     onCardClick: () -> Unit,
     onLongClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isBatchSelectionMode: Boolean = false,
+    isSelected: Boolean = false
 ) {
     val context = LocalContext.current
     val positionManager = remember { com.xmvisio.app.audio.PlaybackPositionManager(context) }
@@ -1520,11 +1693,15 @@ private fun AudioItem(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onCardClick,
-                onLongClick = onLongClick,
+                onLongClick = if (isBatchSelectionMode) null else onLongClick,
                 enabled = !isReorderMode
             ),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = if (isSelected && isBatchSelectionMode) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            }
         ),
         elevation = CardDefaults.elevatedCardElevation(
             defaultElevation = 0.dp,
@@ -1541,6 +1718,21 @@ private fun AudioItem(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 批量选择模式下显示复选框
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isBatchSelectionMode,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandHorizontally(),
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkHorizontally()
+                ) {
+                    Row {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = null,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
+                }
+                
                 // 封面（带播放动画）
                 Box(
                     modifier = Modifier.size(56.dp)

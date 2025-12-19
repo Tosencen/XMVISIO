@@ -136,6 +136,44 @@ class CategoryManager(private val context: Context) {
         mappings.filter { it.categoryId == categoryId }.map { it.audioId }
     }
     
+    /**
+     * 批量设置音频的分类
+     * 
+     * @param audioIds 音频ID列表
+     * @param categoryId 目标分类ID（null表示移除分类）
+     * @return 操作结果
+     */
+    suspend fun setAudioCategoryBatch(
+        audioIds: List<Long>,
+        categoryId: String?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // 获取当前所有映射
+            val mappings = getMappings().toMutableList()
+            
+            // 为每个音频ID更新或添加映射
+            audioIds.forEach { audioId ->
+                val existingIndex = mappings.indexOfFirst { it.audioId == audioId }
+                
+                if (existingIndex >= 0) {
+                    // 更新现有映射
+                    mappings[existingIndex] = AudioCategoryMapping(audioId, categoryId)
+                } else {
+                    // 添加新映射
+                    mappings.add(AudioCategoryMapping(audioId, categoryId))
+                }
+            }
+            
+            // 保存更新后的映射
+            saveMappings(mappings)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("CategoryManager", "批量设置分类失败", e)
+            Result.failure(e)
+        }
+    }
+    
     private fun saveCategories(categories: List<AudioCategory>) {
         val json = json.encodeToString(categories)
         prefs.edit().putString(KEY_CATEGORIES, json).apply()
