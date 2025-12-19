@@ -80,9 +80,16 @@ fun AudioPlayerScreen(
     var playlist by remember { mutableStateOf<List<LocalAudioFile>>(emptyList()) }
     var categoryName by remember { mutableStateOf<String?>(null) }
     
-    LaunchedEffect(currentAudio.id) {
+    // 使用全局播放器控制器（管理通知）- 提前定义以便在 setPlaylist 回调中使用
+    val playerController = remember { com.xmvisio.app.audio.GlobalAudioPlayerController.getInstance(context) }
+    
+    // 记录初始音频ID，用于判断是否需要重新加载播放列表
+    val initialAudioId = remember { audio.id }
+    
+    // 只在初始化时加载播放列表（不随 currentAudio 变化而重新加载）
+    LaunchedEffect(initialAudioId) {
         // 获取当前音频所属的分类
-        val categoryId = categoryManager.getAudioCategory(currentAudio.id)
+        val categoryId = categoryManager.getAudioCategory(initialAudioId)
         val allAudios = audioScanner.scanAudioFiles()
         
         // 获取分类名称
@@ -122,40 +129,33 @@ fun AudioPlayerScreen(
         } else {
             baselist
         }
-        
-        // 设置播放列表到播放器，用于自动播放下一首
-        audioPlayer.setPlaylist(
-            uris = playlist.map { it.uri },
-            ids = playlist.map { it.id },
-            onPlayNext = { nextId ->
-                // 找到下一首音频并播放
-                val nextAudio = playlist.find { it.id == nextId }
-                if (nextAudio != null) {
-                    currentAudio = nextAudio
-                    // 准备并播放下一首
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                        audioPlayer.prepare(
-                            uri = nextAudio.uri,
-                            audioId = nextAudio.id,
-                            onPrepared = {
-                                audioPlayer.play()
-                            },
-                            onError = { error ->
-                                println("播放器错误: ${error.message}")
-                            }
-                        )
+    }
+    
+    // 当播放列表加载完成后，设置到播放器
+    LaunchedEffect(playlist) {
+        if (playlist.isNotEmpty()) {
+            // 设置播放列表到播放器，用于自动播放下一首
+            audioPlayer.setPlaylist(
+                uris = playlist.map { it.uri },
+                ids = playlist.map { it.id },
+                onPlayNext = { nextId ->
+                    // 找到下一首音频并播放
+                    val nextAudio = playlist.find { it.id == nextId }
+                    if (nextAudio != null) {
+                        // 更新当前音频状态
+                        currentAudio = nextAudio
+                        // 更新播放器控制器的当前音频（确保通知更新）
+                        playerController.setCurrentAudio(nextAudio, playlist)
+                        // 注意：不需要在这里调用 prepare，因为 LaunchedEffect(currentAudio.id) 会处理
                     }
                 }
-            }
-        )
+            )
+        }
     }
     
     // 使用全局睡眠定时器
     val sleepTimerManager = remember { com.xmvisio.app.audio.SleepTimerManager.getInstance(context) }
     val sleepTimerRemaining by sleepTimerManager.remainingTime.collectAsState()
-    
-    // 使用全局播放器控制器（管理通知）
-    val playerController = remember { com.xmvisio.app.audio.GlobalAudioPlayerController.getInstance(context) }
     
     // 更新播放器控制器的当前音频和播放列表
     LaunchedEffect(currentAudio.id, playlist) {

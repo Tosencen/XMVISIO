@@ -18,6 +18,9 @@ class AudioFocusManager(
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     
+    // 保存 AudioFocusRequest 实例（Android O+）
+    private var audioFocusRequest: android.media.AudioFocusRequest? = null
+    
     // 音频焦点监听器
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
@@ -76,17 +79,20 @@ class AudioFocusManager(
      */
     fun requestAudioFocus(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val focusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(
-                    android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build()
-                )
-                .setOnAudioFocusChangeListener(audioFocusChangeListener)
-                .build()
+            // 如果还没有创建 AudioFocusRequest，创建一个
+            if (audioFocusRequest == null) {
+                audioFocusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build()
+            }
             
-            audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } else {
             @Suppress("DEPRECATION")
             audioManager.requestAudioFocus(
@@ -102,10 +108,9 @@ class AudioFocusManager(
      */
     fun abandonAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val focusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setOnAudioFocusChangeListener(audioFocusChangeListener)
-                .build()
-            audioManager.abandonAudioFocusRequest(focusRequest)
+            audioFocusRequest?.let {
+                audioManager.abandonAudioFocusRequest(it)
+            }
         } else {
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(audioFocusChangeListener)

@@ -21,6 +21,12 @@ class MediaNotificationManager(private val context: Context) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private var mediaSession: MediaSessionCompat? = null
     
+    // 缓存 PendingIntent，避免重复创建导致失效（特别是在 Android 15 后台场景）
+    private val previousPendingIntent: PendingIntent by lazy { createPendingIntent(ACTION_PREVIOUS) }
+    private val playPendingIntent: PendingIntent by lazy { createPendingIntent(ACTION_PLAY) }
+    private val pausePendingIntent: PendingIntent by lazy { createPendingIntent(ACTION_PAUSE) }
+    private val nextPendingIntent: PendingIntent by lazy { createPendingIntent(ACTION_NEXT) }
+    
     companion object {
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "audio_playback_channel"
@@ -76,8 +82,11 @@ class MediaNotificationManager(private val context: Context) {
         sleepTimerRemaining: Duration? = null,
         isSetToAudioEnd: Boolean = false,
         hasPrevious: Boolean = true,
-        hasNext: Boolean = true
+        hasNext: Boolean = true,
+        audioId: Long? = null
     ): Notification {
+        println("MediaNotificationManager: showNotification() - title=\"$title\", isPlaying=$isPlaying, hasPrevious=$hasPrevious, hasNext=$hasNext")
+        
         val notification = buildNotification(
             title = title,
             artist = artist,
@@ -85,7 +94,8 @@ class MediaNotificationManager(private val context: Context) {
             sleepTimerRemaining = sleepTimerRemaining,
             isSetToAudioEnd = isSetToAudioEnd,
             hasPrevious = hasPrevious,
-            hasNext = hasNext
+            hasNext = hasNext,
+            audioId = audioId
         )
         
         notificationManager.notify(NOTIFICATION_ID, notification)
@@ -102,7 +112,8 @@ class MediaNotificationManager(private val context: Context) {
         sleepTimerRemaining: Duration?,
         isSetToAudioEnd: Boolean,
         hasPrevious: Boolean,
-        hasNext: Boolean
+        hasNext: Boolean,
+        audioId: Long?
     ): Notification {
         // 构建内容文本（包含艺术家和倒计时信息）
         val contentText = buildString {
@@ -120,11 +131,18 @@ class MediaNotificationManager(private val context: Context) {
             }
         }.ifEmpty { "正在播放" }
         
-        // 点击通知打开应用
+        // 点击通知打开播放器详情页
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+            // 添加标志，确保使用现有的 Activity 实例
+            flags = android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // 传递音频 ID，用于打开播放器
+            audioId?.let { putExtra("OPEN_PLAYER_AUDIO_ID", it) }
+        }
+        
         val contentIntent = PendingIntent.getActivity(
             context,
             0,
-            context.packageManager.getLaunchIntentForPackage(context.packageName),
+            launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
@@ -149,22 +167,23 @@ class MediaNotificationManager(private val context: Context) {
             .setOngoing(isPlaying)
             .setShowWhen(false)
         
-        // 添加上一首按钮（如果没有上一首，按钮仍然显示但禁用）
+        // 使用缓存的 PendingIntent，确保在后台快速更新通知时不会失效
+        // 添加上一首按钮（始终启用，点击时再判断）
         builder.addAction(
             NotificationCompat.Action.Builder(
                 NotificationIcons.getSkipPreviousIcon(context),
                 "上一首",
-                if (hasPrevious) createPendingIntent(ACTION_PREVIOUS) else null
+                previousPendingIntent
             ).build()
         )
         
-        // 添加播放/暂停按钮
+        // 添加播放/暂停按钮 - 使用缓存的 PendingIntent
         if (isPlaying) {
             builder.addAction(
                 NotificationCompat.Action.Builder(
                     NotificationIcons.getPauseIcon(context),
                     "暂停",
-                    createPendingIntent(ACTION_PAUSE)
+                    pausePendingIntent
                 ).build()
             )
         } else {
@@ -172,17 +191,17 @@ class MediaNotificationManager(private val context: Context) {
                 NotificationCompat.Action.Builder(
                     NotificationIcons.getPlayIcon(context),
                     "播放",
-                    createPendingIntent(ACTION_PLAY)
+                    playPendingIntent
                 ).build()
             )
         }
         
-        // 添加下一首按钮（如果没有下一首，按钮仍然显示但禁用）
+        // 添加下一首按钮（始终启用，点击时再判断）
         builder.addAction(
             NotificationCompat.Action.Builder(
                 NotificationIcons.getSkipNextIcon(context),
                 "下一首",
-                if (hasNext) createPendingIntent(ACTION_NEXT) else null
+                nextPendingIntent
             ).build()
         )
         
@@ -198,16 +217,21 @@ class MediaNotificationManager(private val context: Context) {
     
     /**
      * 创建 PendingIntent
+     * 使用 FLAG_IMMUTABLE 确保 PendingIntent 不会被修改
+     * 使用唯一的 requestCode 确保每个 action 都有独立的 PendingIntent
      */
     private fun createPendingIntent(action: String): PendingIntent {
         val intent = Intent(action).apply {
             setPackage(context.packageName)
+            // 添加 action 作为 intent 的一部分，确保唯一性
+            setAction(action)
         }
+        // 使用固定的 requestCode（action 的 hashCode），确保相同 action 复用同一个 PendingIntent
         return PendingIntent.getBroadcast(
             context,
             action.hashCode(),
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE
         )
     }
     

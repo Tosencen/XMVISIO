@@ -45,6 +45,9 @@ class MainActivity : ComponentActivity() {
         val (errorMessage, stackTrace) = intent.getCrashInfo()
         
         setContent {
+            // 从 Intent 中获取要打开的音频 ID
+            val openPlayerAudioId = remember { mutableStateOf(intent.getLongExtra("OPEN_PLAYER_AUDIO_ID", -1L)) }
+            
             if (errorMessage != null && stackTrace != null) {
                 // 显示崩溃页面
                 CrashScreen(
@@ -61,9 +64,19 @@ class MainActivity : ComponentActivity() {
                 )
             } else {
                 // 正常显示应用
-                AppWithUpdateCheck(updateViewModel = updateViewModel!!)
+                AppWithUpdateCheck(
+                    updateViewModel = updateViewModel!!,
+                    openPlayerAudioId = if (openPlayerAudioId.value > 0) openPlayerAudioId.value else null
+                )
             }
         }
+    }
+    
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // 当收到新的 Intent 时（例如从通知点击），重新创建 Activity 以处理新的音频 ID
+        recreate()
     }
     
     override fun onResume() {
