@@ -78,6 +78,23 @@ class AudioPlayer(private val context: Context) {
     fun getCurrentAudioId(): Long? = _currentAudioId.value
     
     /**
+     * 同步播放状态（用于应用恢复时）
+     */
+    fun syncPlaybackState() {
+        mediaPlayer?.let { player ->
+            try {
+                val actuallyPlaying = player.isPlaying
+                if (_isPlaying.value != actuallyPlaying) {
+                    _isPlaying.value = actuallyPlaying
+                    println("同步播放状态: isPlaying=$actuallyPlaying")
+                }
+            } catch (e: Exception) {
+                println("同步播放状态失败: ${e.message}")
+            }
+        }
+    }
+    
+    /**
      * 准备播放
      */
     suspend fun prepare(
@@ -93,8 +110,11 @@ class AudioPlayer(private val context: Context) {
                 return
             }
             
-            // 停止并释放当前播放器
-            release()
+            // 确保音频焦点监听器已注册（可能在之前的 release 中被注销）
+            audioFocusManager.register()
+            
+            // 停止并释放当前播放器（不注销监听器）
+            releaseMediaPlayerOnly()
             currentUri = uri
             _currentAudioId.value = audioId
             
@@ -323,16 +343,25 @@ class AudioPlayer(private val context: Context) {
      * @return 是否有下一首
      */
     private fun playNext(): Boolean {
-        val currentId = _currentAudioId.value ?: return false
-        val currentIndex = playlistIds.indexOf(currentId)
-        
-        if (currentIndex >= 0 && currentIndex < playlistIds.size - 1) {
-            // 有下一首，通知回调
-            val nextId = playlistIds[currentIndex + 1]
-            onPlayNextCallback?.invoke(nextId)
+        // 优先使用 GlobalAudioPlayerController 来播放下一首
+        // 这样即使界面关闭，也能继续自动播放
+        try {
+            val controller = GlobalAudioPlayerController.getInstance(context)
+            controller.playNext()
             return true
+        } catch (e: Exception) {
+            // 如果 GlobalAudioPlayerController 不可用，使用回调方式
+            val currentId = _currentAudioId.value ?: return false
+            val currentIndex = playlistIds.indexOf(currentId)
+            
+            if (currentIndex >= 0 && currentIndex < playlistIds.size - 1) {
+                // 有下一首，通知回调
+                val nextId = playlistIds[currentIndex + 1]
+                onPlayNextCallback?.invoke(nextId)
+                return true
+            }
+            return false
         }
-        return false
     }
     
     /**
@@ -359,7 +388,29 @@ class AudioPlayer(private val context: Context) {
     }
     
     /**
-     * 释放资源
+     * 仅释放 MediaPlayer（不注销监听器，用于切换音频时）
+     */
+    private fun releaseMediaPlayerOnly() {
+        // 保存当前位置
+        _currentAudioId.value?.let { id ->
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                positionManager.savePosition(id, _currentPosition.value)
+            }
+        }
+        
+        audioFocusManager.abandonAudioFocus()
+        
+        mediaPlayer?.release()
+        mediaPlayer = null
+        currentUri = null
+        _currentAudioId.value = null
+        _isPlaying.value = false
+        _currentPosition.value = Duration.ZERO
+        _duration.value = Duration.ZERO
+    }
+    
+    /**
+     * 释放资源（完全释放，包括注销监听器）
      */
     fun release() {
         // 保存当前位置

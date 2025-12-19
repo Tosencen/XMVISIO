@@ -20,12 +20,18 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
     private val audioPlayer = GlobalAudioPlayer.getInstance(context)
     private val notificationManager = MediaNotificationManager(context)
     private val sleepTimerManager = SleepTimerManager.getInstance(context)
+    private val recentPlayManager = RecentPlayManager.getInstance(context)
     
     private val _currentAudio = MutableStateFlow<LocalAudioFile?>(null)
     val currentAudio: StateFlow<LocalAudioFile?> = _currentAudio.asStateFlow()
     
     private val _playlist = MutableStateFlow<List<LocalAudioFile>>(emptyList())
     val playlist: StateFlow<List<LocalAudioFile>> = _playlist.asStateFlow()
+    
+    /**
+     * 获取当前播放的音频（同步方法，供UI直接访问）
+     */
+    fun getCurrentAudio(): LocalAudioFile? = _currentAudio.value
     
     private var notificationUpdateJob: Job? = null
     
@@ -64,6 +70,20 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
     fun setCurrentAudio(audio: LocalAudioFile, playlist: List<LocalAudioFile>) {
         _currentAudio.value = audio
         _playlist.value = playlist
+        
+        // 同时更新 AudioPlayer 的播放列表，确保后台播放时也能正确切换
+        audioPlayer.setPlaylist(
+            uris = playlist.map { it.uri },
+            ids = playlist.map { it.id },
+            onPlayNext = { nextId ->
+                // 当 AudioPlayer 自动播放下一首时，更新 currentAudio
+                val nextAudio = playlist.find { it.id == nextId }
+                if (nextAudio != null) {
+                    _currentAudio.value = nextAudio
+                }
+            }
+        )
+        
         updateNotification()
     }
     
@@ -77,7 +97,11 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
         
         if (currentIndex > 0) {
             val previousAudio = list[currentIndex - 1]
-            _currentAudio.value = previousAudio
+            
+            // 记录最近播放
+            CoroutineScope(Dispatchers.Main).launch {
+                recentPlayManager.recordRecentPlay(previousAudio.id, previousAudio.title)
+            }
             
             // 准备并播放
             CoroutineScope(Dispatchers.Main).launch {
@@ -85,8 +109,11 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
                     uri = previousAudio.uri,
                     audioId = previousAudio.id,
                     onPrepared = {
+                        // 先更新 currentAudio，确保通知显示正确的标题
+                        _currentAudio.value = previousAudio
+                        // 然后开始播放
                         audioPlayer.play()
-                        // 确保播放开始后更新通知
+                        // 手动触发通知更新，确保标题和按钮状态都正确
                         updateNotification()
                     }
                 )
@@ -104,7 +131,11 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
         
         if (currentIndex >= 0 && currentIndex < list.size - 1) {
             val nextAudio = list[currentIndex + 1]
-            _currentAudio.value = nextAudio
+            
+            // 记录最近播放
+            CoroutineScope(Dispatchers.Main).launch {
+                recentPlayManager.recordRecentPlay(nextAudio.id, nextAudio.title)
+            }
             
             // 准备并播放
             CoroutineScope(Dispatchers.Main).launch {
@@ -112,8 +143,11 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
                     uri = nextAudio.uri,
                     audioId = nextAudio.id,
                     onPrepared = {
+                        // 先更新 currentAudio，确保通知显示正确的标题
+                        _currentAudio.value = nextAudio
+                        // 然后开始播放
                         audioPlayer.play()
-                        // 确保播放开始后更新通知
+                        // 手动触发通知更新
                         updateNotification()
                     }
                 )
@@ -125,18 +159,33 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
      * 更新通知
      */
     private fun updateNotification() {
-        val audio = _currentAudio.value ?: return
-        val list = _playlist.value
+        val audio = _currentAudio.value ?: run {
+            println("GlobalAudioPlayerController: updateNotification() - currentAudio is null, skipping")
+            return
+        }
+        
+        // 优先从 AudioPlayer 获取播放列表（更可靠）
+        val list = if (_playlist.value.isEmpty()) {
+            // 如果 GlobalAudioPlayerController 的播放列表为空，尝试从 AudioPlayer 重建
+            emptyList<LocalAudioFile>()
+        } else {
+            _playlist.value
+        }
+        
         val currentIndex = list.indexOfFirst { it.id == audio.id }
+        val isPlaying = audioPlayer.isPlaying.value
+        
+        println("GlobalAudioPlayerController: updateNotification() - title=\"${audio.title}\", isPlaying=$isPlaying")
         
         notificationManager.showNotification(
             title = audio.title,
             artist = audio.artist,
-            isPlaying = audioPlayer.isPlaying.value,
+            isPlaying = isPlaying,
             sleepTimerRemaining = sleepTimerManager.remainingTime.value,
             isSetToAudioEnd = sleepTimerManager.isSetToAudioEnd.value,
             hasPrevious = currentIndex > 0,
-            hasNext = currentIndex < list.size - 1
+            hasNext = currentIndex < list.size - 1,
+            audioId = audio.id
         )
     }
     

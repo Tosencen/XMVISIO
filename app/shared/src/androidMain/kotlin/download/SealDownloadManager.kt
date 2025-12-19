@@ -5,10 +5,13 @@ import android.os.Environment
 import android.util.Log
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
@@ -24,6 +27,9 @@ class SealDownloadManager private constructor(
     
     private val _downloads = MutableStateFlow<List<DownloadTask>>(emptyList())
     override val downloads: StateFlow<List<DownloadTask>> = _downloads.asStateFlow()
+    
+    // 用于管理下载任务的协程作用域
+    private val downloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     override fun hasStoragePermission(): Boolean {
         // 所有 Android 版本都使用应用外部存储，不需要权限
@@ -71,33 +77,64 @@ class SealDownloadManager private constructor(
         }
     }
     
-    override suspend fun startDownload(url: String, downloadType: DownloadType): Result<String> = withContext(Dispatchers.IO) {
+    override suspend fun startDownload(url: String, downloadType: DownloadType): Result<String> {
         val taskId = UUID.randomUUID().toString()
         
-        try {
-            // 检查 YoutubeDL 是否已初始化
+        // 创建初始任务
+        val task = DownloadTask(
+            id = taskId,
+            url = url,
+            title = "正在解析...",
+            status = DownloadStatus.EXTRACTING,
+            downloadType = downloadType
+        )
+        addTask(task)
+        
+        // 在后台协程中执行下载，不阻塞调用者
+        downloadScope.launch {
             try {
-                YoutubeDL.getInstance()
-            } catch (e: Exception) {
-                Log.e(TAG, "YoutubeDL not initialized, attempting to initialize now", e)
+                // 检查 YoutubeDL 是否已初始化
                 try {
-                    YoutubeDL.getInstance().init(context)
-                    Log.d(TAG, "YoutubeDL initialized successfully")
-                } catch (initError: Exception) {
-                    Log.e(TAG, "Failed to initialize YoutubeDL", initError)
-                    return@withContext Result.failure(Exception("YoutubeDL 初始化失败: ${initError.message}"))
+                    YoutubeDL.getInstance()
+                } catch (e: Exception) {
+                    Log.e(TAG, "YoutubeDL not initialized, attempting to initialize now", e)
+                    try {
+                        YoutubeDL.getInstance().init(context)
+                        Log.d(TAG, "YoutubeDL initialized successfully")
+                    } catch (initError: Exception) {
+                        Log.e(TAG, "Failed to initialize YoutubeDL", initError)
+                        updateTask(taskId) {
+                            it.copy(
+                                status = DownloadStatus.FAILED,
+                                errorMessage = "YoutubeDL 初始化失败: ${initError.message}"
+                            )
+                        }
+                        return@launch
+                    }
+                }
+                
+                // 执行下载任务
+                performDownload(taskId, url, downloadType)
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed", e)
+                updateTask(taskId) {
+                    it.copy(
+                        status = DownloadStatus.FAILED,
+                        errorMessage = e.message ?: "下载失败"
+                    )
                 }
             }
-            
-            // 创建初始任务
-            val task = DownloadTask(
-                id = taskId,
-                url = url,
-                title = "正在解析...",
-                status = DownloadStatus.EXTRACTING,
-                downloadType = downloadType
-            )
-            addTask(task)
+        }
+        
+        // 立即返回任务ID
+        return Result.success(taskId)
+    }
+    
+    /**
+     * 执行实际的下载任务
+     */
+    private suspend fun performDownload(taskId: String, url: String, downloadType: DownloadType) = withContext(Dispatchers.IO) {
+        try {
             
             // 获取视频信息
             val infoRequest = YoutubeDLRequest(url)
@@ -287,8 +324,6 @@ class SealDownloadManager private constructor(
                     filePath = filePath ?: uri.toString()
                 )
             }
-            
-            Result.success(taskId)
         } catch (e: Exception) {
             Log.e(TAG, "Download failed", e)
             updateTask(taskId) {
@@ -297,13 +332,31 @@ class SealDownloadManager private constructor(
                     errorMessage = e.message ?: "下载失败"
                 )
             }
-            Result.failure(e)
         }
     }
     
     override fun cancelDownload(taskId: String) {
         updateTask(taskId) {
             it.copy(status = DownloadStatus.CANCELLED)
+        }
+    }
+    
+    override fun removeDownload(taskId: String) {
+        _downloads.value = _downloads.value.filter { it.id != taskId }
+    }
+    
+    override fun clearCompletedDownloads() {
+        _downloads.value = _downloads.value.filter { task ->
+            task.status != DownloadStatus.COMPLETED
+        }
+    }
+    
+    override fun clearAllDownloads() {
+        _downloads.value = _downloads.value.filter { task ->
+            // 保留正在下载、解析中、等待中的任务
+            task.status == DownloadStatus.DOWNLOADING ||
+            task.status == DownloadStatus.EXTRACTING ||
+            task.status == DownloadStatus.PENDING
         }
     }
     

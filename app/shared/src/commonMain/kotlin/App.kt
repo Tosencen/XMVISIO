@@ -32,13 +32,13 @@ import com.xmvisio.app.ui.theme.AppTheme
  * 带更新检查的应用入口（Android 专用）
  */
 @Composable
-expect fun AppWithUpdateCheck(updateViewModel: Any)
+expect fun AppWithUpdateCheck(updateViewModel: Any, openPlayerAudioId: Long? = null)
 
 /**
  * XMVISIO 应用入口
  */
 @Composable
-fun App() {
+fun App(openPlayerAudioId: Long? = null) {
     val themeSettingsManager = remember { com.xmvisio.app.data.createThemeSettingsManager() }
     val themeSettings by themeSettingsManager.themeSettings.collectAsState(
         initial = com.xmvisio.app.data.ThemeSettings.Default
@@ -67,28 +67,29 @@ fun App() {
                 navController = navController,
                 startDestination = "main"
             ) {
-            composable("main") {
-                MainScreen(
-                    onNavigateToSettings = { navController.navigate("settings") }
-                )
-            }
-            composable("settings") {
-                com.xmvisio.app.ui.settings.SettingsScreen(
-                    onNavigateToTheme = { navController.navigate("theme_settings") },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-            composable("theme_settings") {
-                com.xmvisio.app.ui.settings.ThemeSettingsPage(
-                    themeSettings = themeSettings,
-                    onThemeChange = { newSettings ->
-                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            themeSettingsManager.saveThemeSettings(newSettings)
-                        }
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
+                composable("main") {
+                    MainScreen(
+                        onNavigateToSettings = { navController.navigate("settings") },
+                        openPlayerAudioId = openPlayerAudioId
+                    )
+                }
+                composable("settings") {
+                    com.xmvisio.app.ui.settings.SettingsScreen(
+                        onNavigateToTheme = { navController.navigate("theme_settings") },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("theme_settings") {
+                    com.xmvisio.app.ui.settings.ThemeSettingsPage(
+                        themeSettings = themeSettings,
+                        onThemeChange = { newSettings ->
+                            coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                themeSettingsManager.saveThemeSettings(newSettings)
+                            }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
     }
@@ -102,7 +103,8 @@ fun App() {
 @Composable
 fun MainScreen(
     onNavigateToSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    openPlayerAudioId: Long? = null
 ) {
     // 使用 rememberSaveable 保存选中的 tab，避免从设置页返回时状态丢失
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.AUDIOBOOK) }
@@ -110,9 +112,22 @@ fun MainScreen(
     var showPlayer by rememberSaveable { mutableStateOf(false) }
     var audioToPlay by remember { mutableStateOf<Any?>(null) }
     
+    // 如果有 openPlayerAudioId，从通知点击进来，直接打开播放器
+    // 这个功能只在 Android 上可用
+    if (openPlayerAudioId != null && openPlayerAudioId > 0) {
+        // 使用 expect/actual 来处理平台特定的逻辑
+        HandleOpenPlayerRequest(
+            audioId = openPlayerAudioId,
+            onAudioFound = { audio ->
+                audioToPlay = audio
+                showPlayer = true
+            }
+        )
+    }
+    
     Box(modifier = Modifier.fillMaxSize()) {
         AniNavigationSuiteScaffold(
-        navigationSuiteItems = {
+            navigationSuiteItems = {
             MainTab.entries.forEach { tab ->
                 item(
                     selected = selectedTab == tab,
@@ -127,13 +142,13 @@ fun MainScreen(
                     alwaysShowLabel = true
                 )
             }
-        },
-        navigationRailHeader = null,
-        navigationRailFooter = null,
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        navigationContainerColor = MaterialTheme.colorScheme.surfaceContainer
-    ) {
+            },
+            navigationRailHeader = null,
+            navigationRailFooter = null,
+            modifier = modifier,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            navigationContainerColor = MaterialTheme.colorScheme.surfaceContainer
+        ) {
             when (selectedTab) {
                 MainTab.AUDIOBOOK -> AudiobookScreen(
                     onNavigateToPlayer = { audio ->
@@ -177,6 +192,15 @@ enum class MainTab(
         unselectedIcon = Icons.Outlined.Download
     )
 }
+
+/**
+ * 处理从通知打开播放器的请求（平台特定）
+ */
+@Composable
+expect fun HandleOpenPlayerRequest(
+    audioId: Long,
+    onAudioFound: (Any) -> Unit
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 

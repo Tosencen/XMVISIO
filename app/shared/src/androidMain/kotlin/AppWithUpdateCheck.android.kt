@@ -12,7 +12,7 @@ import com.xmvisio.app.ui.settings.UpdateDialog
  * 带自动更新检查的应用入口（Android）
  */
 @Composable
-actual fun AppWithUpdateCheck(updateViewModel: Any) {
+actual fun AppWithUpdateCheck(updateViewModel: Any, openPlayerAudioId: Long?) {
     val vm = updateViewModel as UpdateViewModel
     val context = LocalContext.current
     val updateState by vm.updateState.collectAsState()
@@ -47,7 +47,7 @@ actual fun AppWithUpdateCheck(updateViewModel: Any) {
     }
     
     // 显示应用主界面
-    App()
+    App(openPlayerAudioId = openPlayerAudioId)
     
     // 只在有新版本时显示更新对话框（包裹在主题中）
     if (updateState is UpdateState.HasUpdate || 

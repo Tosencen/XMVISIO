@@ -140,6 +140,49 @@ fun SealDownloadScreen(
                                     enabled = false
                                 )
                             }
+                            
+                            // 清理下载记录
+                            if (downloads.isNotEmpty()) {
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text("清理已完成")
+                                        }
+                                    },
+                                    onClick = {
+                                        downloadManager.clearCompletedDownloads()
+                                        showMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.DeleteSweep,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text("清理全部记录")
+                                        }
+                                    },
+                                    onClick = {
+                                        downloadManager.clearAllDownloads()
+                                        showMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                     
@@ -202,7 +245,8 @@ fun SealDownloadScreen(
                 items(downloads, key = { it.id }) { task ->
                     DownloadTaskCard(
                         task = task,
-                        onCancel = { downloadManager.cancelDownload(task.id) }
+                        onCancel = { downloadManager.cancelDownload(task.id) },
+                        onDismiss = { downloadManager.removeDownload(task.id) }
                     )
                 }
             }
@@ -382,15 +426,82 @@ fun SealDownloadScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadTaskCard(
     task: DownloadTask,
     onCancel: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     val context = LocalContext.current
     
+    // 只有已完成、失败、取消的任务才能左滑删除
+    val canDismiss = task.status == DownloadStatus.COMPLETED ||
+                     task.status == DownloadStatus.FAILED ||
+                     task.status == DownloadStatus.CANCELLED
+    
+    if (canDismiss) {
+        val dismissState = rememberSwipeToDismissBoxState(
+            confirmValueChange = { dismissValue ->
+                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                    onDismiss()
+                    true
+                } else {
+                    false
+                }
+            }
+        )
+        
+        SwipeToDismissBox(
+            state = dismissState,
+            modifier = modifier,
+            backgroundContent = {
+                // 左滑时显示的背景
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "删除",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            enableDismissFromStartToEnd = false,
+            enableDismissFromEndToStart = true
+        ) {
+            DownloadTaskCardContent(
+                task = task,
+                onCancel = onCancel,
+                contentColor = contentColor,
+                context = context
+            )
+        }
+    } else {
+        DownloadTaskCardContent(
+            task = task,
+            onCancel = onCancel,
+            contentColor = contentColor,
+            context = context,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
+private fun DownloadTaskCardContent(
+    task: DownloadTask,
+    onCancel: () -> Unit,
+    contentColor: androidx.compose.ui.graphics.Color,
+    context: android.content.Context,
+    modifier: Modifier = Modifier
+) {
     ElevatedCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.elevatedCardColors(

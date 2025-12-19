@@ -735,21 +735,32 @@ internal fun AudiobookScreenImpl(
             
             // 悬浮的 MiniPlayerBar
             val globalPlayer = remember { com.xmvisio.app.audio.GlobalAudioPlayer.getInstance(context) }
+            val globalController = remember { com.xmvisio.app.audio.GlobalAudioPlayerController.getInstance(context) }
+            
+            // 同步播放状态（应用恢复时）
+            LaunchedEffect(Unit) {
+                globalPlayer.syncPlaybackState()
+            }
+            
             val isPlaying by globalPlayer.isPlaying.collectAsState()
             val currentPosition by globalPlayer.currentPosition.collectAsState()
             val playerDuration by globalPlayer.duration.collectAsState()
             val currentPlayingAudioId by globalPlayer.currentAudioId.collectAsState()
             
-            // 显示 MiniPlayerBar：如果有正在播放的音频，或者有最近播放记录
-            val displayAudioId = currentPlayingAudioId ?: recentAudioId
+            // 从 GlobalAudioPlayerController 获取当前播放的音频（即使不在当前分类列表中也能显示）
+            val controllerCurrentAudio by globalController.currentAudio.collectAsState()
             
-            if (displayAudioId != null && !isSearching && !isReorderMode && permissionStatus == PermissionStatus.GRANTED) {
-                val playingAudio = audioList.find { it.id == displayAudioId }
-                if (playingAudio != null) {
-                    // 使用当前页面的排序后列表来判断上一首/下一首
-                    val currentIndex = currentPageAudioList.indexOfFirst { it.id == currentPlayingAudioId }
-                    val canSkipNext = currentIndex >= 0 && currentIndex < currentPageAudioList.size - 1
-                    val canSkipPrevious = currentIndex > 0
+            // 显示 MiniPlayerBar：优先使用 GlobalAudioPlayerController 的 currentAudio，
+            // 如果没有则尝试从 audioList 中查找最近播放的音频
+            val displayAudioId = currentPlayingAudioId ?: recentAudioId
+            val playingAudio = controllerCurrentAudio ?: audioList.find { it.id == displayAudioId }
+            
+            if (playingAudio != null && !isSearching && !isReorderMode && permissionStatus == PermissionStatus.GRANTED) {
+                // 使用 GlobalAudioPlayerController 的播放列表来判断上一首/下一首
+                val controllerPlaylist by globalController.playlist.collectAsState()
+                val currentIndex = controllerPlaylist.indexOfFirst { it.id == currentPlayingAudioId }
+                val canSkipNext = currentIndex >= 0 && currentIndex < controllerPlaylist.size - 1
+                val canSkipPrevious = currentIndex > 0
                     
                     Box(
                         modifier = Modifier
@@ -779,51 +790,18 @@ internal fun AudiobookScreenImpl(
                                 }
                             },
                             onNextClick = {
-                                if (canSkipNext) {
-                                    val nextAudio = currentPageAudioList[currentIndex + 1]
-                                    scope.launch {
-                                        recentPlayManager.recordRecentPlay(nextAudio.id, nextAudio.title)
-                                        globalPlayer.prepare(
-                                            uri = nextAudio.uri,
-                                            audioId = nextAudio.id,
-                                            onPrepared = { globalPlayer.play() }
-                                        )
-                                    }
-                                } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "已经是最后一首了",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
+                                // 使用 GlobalAudioPlayerController 来播放下一首
+                                globalController.playNext()
                             },
                             onPreviousClick = {
-                                if (canSkipPrevious) {
-                                    val previousAudio = currentPageAudioList[currentIndex - 1]
-                                    scope.launch {
-                                        recentPlayManager.recordRecentPlay(previousAudio.id, previousAudio.title)
-                                        globalPlayer.prepare(
-                                            uri = previousAudio.uri,
-                                            audioId = previousAudio.id,
-                                            onPrepared = { globalPlayer.play() }
-                                        )
-                                    }
-                                } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "已经是第一首了",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
+                                // 使用 GlobalAudioPlayerController 来播放上一首
+                                globalController.playPrevious()
                             },
                             onFavoriteClick = {},
                             onClick = { onNavigateToPlayer(playingAudio) },
                             isFavorite = false
                         )
                     }
-                }
             }
         }
     }
