@@ -79,6 +79,8 @@ class MediaNotificationManager(private val context: Context) {
         title: String,
         artist: String? = null,
         isPlaying: Boolean,
+        currentPosition: Duration? = null,
+        duration: Duration? = null,
         sleepTimerRemaining: Duration? = null,
         isSetToAudioEnd: Boolean = false,
         hasPrevious: Boolean = true,
@@ -91,6 +93,8 @@ class MediaNotificationManager(private val context: Context) {
             title = title,
             artist = artist,
             isPlaying = isPlaying,
+            currentPosition = currentPosition,
+            duration = duration,
             sleepTimerRemaining = sleepTimerRemaining,
             isSetToAudioEnd = isSetToAudioEnd,
             hasPrevious = hasPrevious,
@@ -109,16 +113,28 @@ class MediaNotificationManager(private val context: Context) {
         title: String,
         artist: String?,
         isPlaying: Boolean,
+        currentPosition: Duration?,
+        duration: Duration?,
         sleepTimerRemaining: Duration?,
         isSetToAudioEnd: Boolean,
         hasPrevious: Boolean,
         hasNext: Boolean,
         audioId: Long?
     ): Notification {
-        // 构建内容文本（包含艺术家和倒计时信息）
+        // 构建内容文本（包含播放时间、艺术家和倒计时信息）
         val contentText = buildString {
-            artist?.let { append(it) }
+            // 添加播放时间
+            if (currentPosition != null && duration != null && duration.inWholeMilliseconds > 0) {
+                append("${formatTime(currentPosition)} / ${formatTime(duration)}")
+            }
             
+            // 添加艺术家
+            artist?.let {
+                if (isNotEmpty()) append(" • ")
+                append(it)
+            }
+            
+            // 添加睡眠定时器信息
             when {
                 sleepTimerRemaining != null -> {
                     if (isNotEmpty()) append(" • ")
@@ -233,6 +249,21 @@ class MediaNotificationManager(private val context: Context) {
             intent,
             PendingIntent.FLAG_IMMUTABLE
         )
+    }
+    
+    /**
+     * 格式化播放时间显示
+     */
+    private fun formatTime(duration: Duration): String {
+        val totalSeconds = duration.inWholeSeconds
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        
+        return when {
+            hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, seconds)
+            else -> String.format("%d:%02d", minutes, seconds)
+        }
     }
     
     /**

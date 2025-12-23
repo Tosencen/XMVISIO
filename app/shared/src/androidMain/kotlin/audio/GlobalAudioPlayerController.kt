@@ -174,13 +174,17 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
         
         val currentIndex = list.indexOfFirst { it.id == audio.id }
         val isPlaying = audioPlayer.isPlaying.value
+        val currentPosition = audioPlayer.currentPosition.value
+        val duration = audioPlayer.duration.value
         
-        println("GlobalAudioPlayerController: updateNotification() - title=\"${audio.title}\", isPlaying=$isPlaying")
+        println("GlobalAudioPlayerController: updateNotification() - title=\"${audio.title}\", isPlaying=$isPlaying, position=${currentPosition.inWholeSeconds}s, duration=${duration.inWholeSeconds}s")
         
         notificationManager.showNotification(
             title = audio.title,
             artist = audio.artist,
             isPlaying = isPlaying,
+            currentPosition = currentPosition,
+            duration = duration,
             sleepTimerRemaining = sleepTimerManager.remainingTime.value,
             isSetToAudioEnd = sleepTimerManager.isSetToAudioEnd.value,
             hasPrevious = currentIndex > 0,
