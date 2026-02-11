@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 /**
  * 音量控制对话框
@@ -25,18 +26,29 @@ fun VolumeDialog(
 ) {
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    
+
     // 获取当前音量和最大音量
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
-    var currentVolume by remember { 
+    var currentVolume by remember {
         mutableFloatStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat())
     }
-    
+
+    // 实时更新音量状态
+    LaunchedEffect(Unit) {
+        while (true) {
+            val realVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            if (realVolume.toFloat() != currentVolume) {
+                currentVolume = realVolume.toFloat()
+            }
+            delay(100)
+        }
+    }
+
     // 计算实时百分比
     val volumePercentage = remember(currentVolume) {
         ((currentVolume / maxVolume) * 100).toInt()
     }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("音量控制") },
@@ -59,14 +71,14 @@ fun VolumeDialog(
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                
+
                 // 音量百分比显示 - 实时更新
                 Text(
                     text = "$volumePercentage%",
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
                 // 音量滑块
                 Slider(
                     value = currentVolume,
@@ -79,10 +91,15 @@ fun VolumeDialog(
                         )
                     },
                     valueRange = 0f..maxVolume.toFloat(),
-                    steps = maxVolume - 1,
+                    steps = 0,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
-                
+
                 // 音量范围提示
                 Row(
                     modifier = Modifier.fillMaxWidth(),

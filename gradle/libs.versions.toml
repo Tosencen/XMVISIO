@@ -276,3 +276,10 @@ posthog-java = { module = "com.posthog.java:posthog", version.ref = "posthog-jav
 youtubedl-android-library = { module = "io.github.junkfood02.youtubedl-android:library", version.ref = "youtubedl-android" }
 youtubedl-android-ffmpeg = { module = "io.github.junkfood02.youtubedl-android:ffmpeg", version.ref = "youtubedl-android" }
 youtubedl-android-aria2c = { module = "io.github.junkfood02.youtubedl-android:aria2c", version.ref = "youtubedl-android" }
+
+# Lottie - 动画库
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version = "6.6.0" }
+
+# Haze - 毛玻璃效果库
+haze-core = { module = "dev.chrisbanes.haze:haze", version = "1.2.0" }
+haze-materials = { module = "dev.chrisbanes.haze:haze-materials", version = "1.1.0" }

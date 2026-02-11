@@ -68,7 +68,14 @@ kotlin {
             
             // Squiggly Slider for wave animation
             implementation(libs.squigglyslider)
-            
+
+            // Haze - 毛玻璃效果
+            implementation(libs.haze.core)
+            implementation(libs.haze.materials)
+
+            // Lottie - 动画
+            implementation(libs.lottie.compose)
+
             // YoutubeDL Android (Seal's fork) - 视频/音频下载
             implementation(libs.youtubedl.android.library)
             implementation(libs.youtubedl.android.ffmpeg)

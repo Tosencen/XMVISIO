@@ -115,10 +115,10 @@ fun MainScreen(
 ) {
     // 使用 rememberSaveable 保存选中的 tab，避免从设置页返回时状态丢失
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.AUDIOBOOK) }
-    
+
     var showPlayer by rememberSaveable { mutableStateOf(false) }
     var audioToPlay by remember { mutableStateOf<Any?>(null) }
-    
+
     // 如果有 openPlayerAudioId，从通知点击进来，直接打开播放器
     // 这个功能只在 Android 上可用
     if (openPlayerAudioId != null && openPlayerAudioId > 0) {
@@ -131,7 +131,7 @@ fun MainScreen(
             }
         )
     }
-    
+
     Box(modifier = Modifier.fillMaxSize()) {
         AniNavigationSuiteScaffold(
             navigationSuiteItems = {
@@ -166,7 +166,7 @@ fun MainScreen(
                 MainTab.DOWNLOADS -> DownloadsScreen(onNavigateToSettings = onNavigateToSettings)
             }
         }
-        
+
         // 播放器全屏显示
         if (showPlayer && audioToPlay != null) {
             com.xmvisio.app.ui.player.AudioPlayerScreenWrapper(

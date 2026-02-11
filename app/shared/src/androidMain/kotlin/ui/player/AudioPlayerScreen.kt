@@ -287,7 +287,7 @@ fun AudioPlayerScreen(
                 val scale = 1f - (dragOffsetAnimatable.value / 2000f).coerceIn(0f, 0.05f)
                 scaleX = scale
                 scaleY = scale
-                
+
                 // 添加圆角效果
                 val cornerRadius = (dragOffsetAnimatable.value / 10f).coerceIn(0f, 32f)
                 clip = true
