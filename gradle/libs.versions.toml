@@ -278,7 +278,7 @@ youtubedl-android-ffmpeg = { module = "io.github.junkfood02.youtubedl-android:ff
 youtubedl-android-aria2c = { module = "io.github.junkfood02.youtubedl-android:aria2c", version.ref = "youtubedl-android" }
 
 # Lottie - 动画库
-lottie-compose = { module = "com.airbnb.android:lottie-compose", version = "6.6.0" }
+lottie = { module = "com.airbnb.android:lottie", version = "6.6.0" }
 
 # Haze - 毛玻璃效果库
 haze-core = { module = "dev.chrisbanes.haze:haze", version = "1.2.0" }

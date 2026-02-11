@@ -74,7 +74,7 @@ kotlin {
             implementation(libs.haze.materials)
 
             // Lottie - 动画
-            implementation(libs.lottie.compose)
+            implementation(libs.lottie)
 
             // YoutubeDL Android (Seal's fork) - 视频/音频下载
             implementation(libs.youtubedl.android.library)
