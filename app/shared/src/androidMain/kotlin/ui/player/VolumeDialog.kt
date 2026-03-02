@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 /**
  * 音量控制对话框
@@ -30,23 +31,25 @@ fun VolumeDialog(
     // 获取当前音量和最大音量
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     var currentVolume by remember {
-        mutableFloatStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat())
+        mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
     }
+    val safeMaxVolume = maxVolume.coerceAtLeast(1)
+    val uiVolumeSteps = 20
 
     // 实时更新音量状态
     LaunchedEffect(Unit) {
         while (true) {
             val realVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            if (realVolume.toFloat() != currentVolume) {
-                currentVolume = realVolume.toFloat()
+            if (realVolume != currentVolume) {
+                currentVolume = realVolume
             }
-            delay(100)
+            delay(250)
         }
     }
 
     // 计算实时百分比
-    val volumePercentage = remember(currentVolume) {
-        ((currentVolume / maxVolume) * 100).toInt()
+    val volumePercentage by remember(currentVolume, safeMaxVolume) {
+        derivedStateOf { ((currentVolume.toFloat() / safeMaxVolume.toFloat()) * 100).roundToInt() }
     }
 
     AlertDialog(
@@ -63,8 +66,8 @@ fun VolumeDialog(
                 // 音量图标
                 Icon(
                     imageVector = when {
-                        currentVolume == 0f -> Icons.Default.VolumeMute
-                        currentVolume < maxVolume / 2 -> Icons.Default.VolumeDown
+                        currentVolume == 0 -> Icons.Default.VolumeMute
+                        currentVolume < safeMaxVolume / 2 -> Icons.Default.VolumeDown
                         else -> Icons.Default.VolumeUp
                     },
                     contentDescription = null,
@@ -81,21 +84,25 @@ fun VolumeDialog(
 
                 // 音量滑块
                 Slider(
-                    value = currentVolume,
-                    onValueChange = { value ->
-                        currentVolume = value
-                        audioManager.setStreamVolume(
-                            AudioManager.STREAM_MUSIC,
-                            value.toInt(),
-                            0
-                        )
+                    value = (currentVolume.toFloat() / safeMaxVolume) * uiVolumeSteps,
+                    onValueChange = { uiValue ->
+                        val normalized = (uiValue / uiVolumeSteps).coerceIn(0f, 1f)
+                        val nextVolume = (normalized * safeMaxVolume).roundToInt().coerceIn(0, safeMaxVolume)
+                        if (nextVolume != currentVolume) {
+                            currentVolume = nextVolume
+                            audioManager.setStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                nextVolume,
+                                0
+                            )
+                        }
                     },
-                    valueRange = 0f..maxVolume.toFloat(),
-                    steps = 0,
+                    valueRange = 0f..uiVolumeSteps.toFloat(),
+                    steps = uiVolumeSteps - 1,
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )

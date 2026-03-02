@@ -78,8 +78,6 @@ kotlin {
 
             // YoutubeDL Android (Seal's fork) - 视频/音频下载
             implementation(libs.youtubedl.android.library)
-            implementation(libs.youtubedl.android.ffmpeg)
-            implementation(libs.youtubedl.android.aria2c)
         }
         
         val desktopMain by getting {

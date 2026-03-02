@@ -34,6 +34,15 @@ android {
             // 保留所有 native 库，包括 libc++_shared.so
             pickFirsts.add("lib/*/libc++_shared.so")
         }
+        resources {
+            excludes += setOf(
+                "META-INF/*.version",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "**/*.kotlin_module",
+                "DebugProbesKt.bin"
+            )
+        }
     }
     
     buildFeatures {
@@ -51,7 +60,15 @@ android {
     
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android.txt"),
+                "proguard-rules.pro",
+                "../shared/proguard-rules.pro",
+                "../shared/kotlinx-serialization.pro",
+                "../shared/kotlinx-coroutines.pro"
+            )
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -87,6 +104,4 @@ dependencies {
     
     // YoutubeDL Android (Seal's fork) - 视频/音频下载
     implementation(libs.youtubedl.android.library)
-    implementation(libs.youtubedl.android.ffmpeg)
-    implementation(libs.youtubedl.android.aria2c)
 }

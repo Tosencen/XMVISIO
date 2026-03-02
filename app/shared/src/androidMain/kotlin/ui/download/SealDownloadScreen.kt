@@ -216,7 +216,12 @@ fun SealDownloadScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    EmptyStateAnimation(size = 200.dp)
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(88.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                    )
                     Text(
                         "暂无下载任务",
                         style = MaterialTheme.typography.titleMedium,

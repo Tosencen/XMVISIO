@@ -183,17 +183,16 @@ class SealDownloadManager private constructor(
             
             when (downloadType) {
                 DownloadType.AUDIO -> {
-                    // 下载音频并使用 FFmpeg 转换为 MP3 格式
-                    downloadRequest.addOption("-x")  // 提取音频
-                    downloadRequest.addOption("--audio-format", "mp3")  // 转换为 MP3
-                    downloadRequest.addOption("--audio-quality", "0")  // 最佳音质
+                    // 无 FFmpeg 模式：直接下载最佳音频原始格式（m4a/webm/opus 等）
+                    downloadRequest.addOption("-f", "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio")
                     downloadRequest.addOption("-o", "${tempDir.absolutePath}/%(title)s.%(ext)s")
                 }
                 DownloadType.VIDEO -> {
-                    // 下载视频+音频，使用 FFmpeg 合并为 MP4 格式
-                    // bestvideo+bestaudio 确保同时下载视频和音频流
-                    downloadRequest.addOption("-f", "bestvideo+bestaudio/best")
-                    downloadRequest.addOption("--merge-output-format", "mp4")  // 使用 FFmpeg 合并
+                    // 无 FFmpeg 模式：优先下载包含音频的视频单文件，避免依赖合并
+                    downloadRequest.addOption(
+                        "-f",
+                        "best[ext=mp4][acodec!=none][vcodec!=none]/best[acodec!=none][vcodec!=none]/best"
+                    )
                     downloadRequest.addOption("-o", "${tempDir.absolutePath}/%(title)s.%(ext)s")
                 }
             }
