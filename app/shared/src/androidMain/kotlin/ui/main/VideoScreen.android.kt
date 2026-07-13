@@ -1,10 +1,14 @@
 package com.xmvisio.app.ui.main
 
+import android.Manifest
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,8 +31,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.ui.components.UpdateButton
 import kotlinx.coroutines.Dispatchers
@@ -43,12 +49,35 @@ actual fun VideoScreen(
     modifier: Modifier
 ) {
     val context = LocalContext.current
+
+    val videoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_VIDEO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
+    var hasPermission by remember { mutableStateOf(
+        ContextCompat.checkSelfPermission(context, videoPermission) ==
+            PackageManager.PERMISSION_GRANTED
+    ) }
     var videos by remember { mutableStateOf<List<VideoInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            videos = queryVideos(context)
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            hasPermission = true
+        }
+    }
+
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            withContext(Dispatchers.IO) {
+                videos = queryVideos(context)
+                isLoading = false
+            }
+        } else {
             isLoading = false
         }
     }
@@ -88,6 +117,35 @@ actual fun VideoScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
+                }
+                !hasPermission -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VideoLibrary,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "需要授权才能访问视频文件",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = { permissionLauncher.launch(videoPermission) }
+                        ) {
+                            Text("授权访问视频")
+                        }
+                    }
                 }
                 videos.isEmpty() -> {
                     Column(

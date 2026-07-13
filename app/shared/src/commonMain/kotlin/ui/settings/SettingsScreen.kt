@@ -1,26 +1,26 @@
 package com.xmvisio.app.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
-/**
- * 设置主页
- * 参考 XMSLEEP 的设计风格
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -32,7 +32,7 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     val currentVersion = com.xmvisio.app.util.rememberAppVersion()
     val updateViewModel = rememberUpdateViewModel()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -46,105 +46,83 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent
+                    containerColor = Color.Transparent
                 )
             )
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
     ) { paddingValues ->
         val scrollState = rememberScrollState()
-        
+
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 8.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(0.dp))
-            
-            // 播放设置
+
+            // 播放与外观
             Text(
-                text = "播放",
+                text = "播放与外观",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
             )
-            
-            PlaybackSettingsSection()
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // 外观设置
-            Text(
-                text = "外观",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            
-            SettingsCard(
-                icon = Icons.Filled.Palette,
-                title = "主题与色彩",
-                subtitle = "外观模式、主题色",
-                onClick = onNavigateToTheme,
-                showChevron = true
-            )
-            
-            // 播放进度条样式（仅 Android）
-            SliderStyleSection()
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+
+            SettingsCardGroup {
+                PlaybackSettingsSection(
+                    onNavigateToTheme = onNavigateToTheme
+                )
+            }
+
             // 其他
             Text(
                 text = "其他",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
             )
-            
-            // 软件更新
-            SettingsCard(
-                icon = Icons.Filled.SystemUpdate,
-                title = "软件更新",
-                subtitle = "检查并更新到最新版本",
-                onClick = { showUpdateDialog = true },
-                showChevron = false,
-                trailingText = "v$currentVersion"
-            )
-            
-            // 功能反馈
-            SettingsCard(
-                icon = Icons.Filled.Feedback,
-                title = "功能反馈",
-                subtitle = "提交问题、建议或反馈",
-                onClick = { 
-                    com.xmvisio.app.util.openUrl("https://github.com/Tosencen/XMVISIO/issues")
-                },
-                showChevron = false,
-                trailingText = null
-            )
-            
-            // 关于 XMVISIO
-            SettingsCard(
-                icon = Icons.Filled.Info,
-                title = "关于 XMVISIO",
-                subtitle = "查看应用信息、版本、版权",
-                onClick = { showAboutDialog = true },
-                showChevron = false,
-                trailingText = null
-            )
+
+            SettingsCardGroup {
+                SettingsCardItem(
+                    icon = Icons.Filled.SystemUpdate,
+                    title = "软件更新",
+                    subtitle = "检查并更新到最新版本",
+                    trailingText = "v$currentVersion",
+                    onClick = { showUpdateDialog = true },
+                    isFirst = true
+                )
+
+                SettingsCardItem(
+                    icon = Icons.Filled.Feedback,
+                    title = "功能反馈",
+                    subtitle = "提交问题、建议或反馈",
+                    onClick = {
+                        com.xmvisio.app.util.openUrl("https://github.com/Tosencen/XMVISIO/issues")
+                    }
+                )
+
+                SettingsCardItem(
+                    icon = Icons.Filled.Info,
+                    title = "关于 XMVISIO",
+                    subtitle = "查看应用信息、版本、版权",
+                    onClick = { showAboutDialog = true },
+                    isLast = true
+                )
+            }
         }
-        
-        // 更新检查对话框
+
         if (showUpdateDialog) {
             ShowUpdateDialog(
                 updateViewModel = updateViewModel,
                 onDismiss = { showUpdateDialog = false }
             )
         }
-        
-        // 关于对话框
+
         if (showAboutDialog) {
             AboutDialog(
                 currentVersion = currentVersion,
@@ -154,96 +132,132 @@ fun SettingsScreen(
     }
 }
 
-/**
- * 显示更新对话框（平台特定实现）
- */
+@Composable
+private fun SettingsCardGroup(
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        content = content
+    )
+}
+
+@Composable
+internal fun SettingsCardItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    showChevron: Boolean = false,
+    trailingText: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+    isFirst: Boolean = false,
+    isLast: Boolean = false,
+) {
+    val shape = if (isFirst && isLast) {
+        RoundedCornerShape(24.dp)
+    } else if (isFirst) {
+        RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
+    } else if (isLast) {
+        RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+    } else {
+        RoundedCornerShape(6.dp)
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        tonalElevation = 0.dp
+    ) {
+        SettingsCardRow(
+            icon = icon,
+            title = title,
+            subtitle = subtitle,
+            showChevron = showChevron,
+            trailingText = trailingText,
+            trailing = trailing,
+            onClick = onClick
+        )
+    }
+}
+
+@Composable
+internal fun SettingsCardRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    showChevron: Boolean = false,
+    trailingText: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) Modifier.clickable(onClick = onClick)
+                else Modifier
+            )
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (trailing != null) {
+            trailing()
+        } else if (trailingText != null) {
+            Text(
+                text = trailingText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        if (showChevron) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @Composable
 expect fun ShowUpdateDialog(
     updateViewModel: Any,
     onDismiss: () -> Unit
 )
 
-/**
- * 创建 UpdateViewModel（平台特定实现）
- */
 @Composable
 expect fun rememberUpdateViewModel(): Any
-
-/**
- * 播放进度条样式设置区域（平台特定实现）
- */
-@Composable
-expect fun SliderStyleSection()
-
-/**
- * 设置卡片组件
- */
-@Composable
-private fun SettingsCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: (() -> Unit)?,
-    showChevron: Boolean = true,
-    trailingText: String? = null,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        onClick = onClick ?: {},
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        enabled = onClick != null
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Column {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (trailingText != null) {
-                    Text(
-                        text = trailingText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                if (showChevron) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null
-                    )
-                }
-            }
-        }
-    }
-}
