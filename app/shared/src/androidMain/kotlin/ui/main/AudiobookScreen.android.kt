@@ -9,12 +9,16 @@ import androidx.compose.ui.Modifier
 @Composable
 actual fun AudiobookScreen(
     onNavigateToPlayer: (Any) -> Unit,
+    updateAvailable: Boolean,
+    onUpdateCheck: () -> Unit,
     modifier: Modifier
 ) {
     AudiobookScreenImpl(
         onNavigateToPlayer = { audio ->
             onNavigateToPlayer(audio)
         },
+        updateAvailable = updateAvailable,
+        onUpdateCheck = onUpdateCheck,
         modifier = modifier
     )
 }

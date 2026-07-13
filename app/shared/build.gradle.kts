@@ -57,6 +57,11 @@ kotlin {
             // Media support for notifications
             implementation(libs.androidx.media)
             
+            // Media3 (ExoPlayer) - 视频播放
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.ui.compose)
+            implementation(libs.androidx.media3.session)
+            
             // DataStore for preferences
             implementation(libs.datastore.preferences)
             

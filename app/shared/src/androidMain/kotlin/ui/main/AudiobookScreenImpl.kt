@@ -67,6 +67,7 @@ import com.xmvisio.app.permissions.PermissionStatus
 import com.xmvisio.app.ui.audiobook.EmptyState
 import com.xmvisio.app.ui.audiobook.formatTime
 import com.xmvisio.app.ui.player.AudioPlayerScreen
+import com.xmvisio.app.ui.components.UpdateButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -78,7 +79,9 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 internal fun AudiobookScreenImpl(
     onNavigateToPlayer: (LocalAudioFile) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -315,7 +318,13 @@ internal fun AudiobookScreenImpl(
                                 )
                             )
                         } else {
-                            Text("有声")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("有声")
+                                if (updateAvailable) {
+                                    Spacer(Modifier.width(4.dp))
+                                    UpdateButton(onClick = onUpdateCheck)
+                                }
+                            }
                         }
                     },
                     navigationIcon = {
@@ -423,6 +432,7 @@ internal fun AudiobookScreenImpl(
                                     )
                                 }
                             }
+                            
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

@@ -38,10 +38,26 @@ class UpdateViewModel(private val context: Context) {
     
     private var _downloadedFile: File? = null
     
+    private var lastCheckTime: Long = 0
+    
+    /**
+     * 静默检查更新（带 1 小时节流），不触发 UI 变更
+     */
+    fun startAutomaticCheckLatestVersion(currentVersion: String) {
+        val currentTime = System.currentTimeMillis()
+        val timeSinceLastCheck = currentTime - lastCheckTime
+        if (lastCheckTime > 0 && timeSinceLastCheck < 1000 * 60 * 60 * 1) {
+            Log.d("UpdateViewModel", "距离上次检查仅 ${timeSinceLastCheck / 1000 / 60} 分钟，跳过")
+            return
+        }
+        checkUpdate(currentVersion)
+    }
+    
     /**
      * 检查更新
      */
     fun checkUpdate(currentVersion: String) {
+        lastCheckTime = System.currentTimeMillis()
         scope.launch {
             _updateState.value = UpdateState.Checking
             Log.d("UpdateViewModel", "开始检查更新，当前版本: $currentVersion")

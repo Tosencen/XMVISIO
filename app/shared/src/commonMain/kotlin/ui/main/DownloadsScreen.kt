@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 expect fun DownloadsScreen(
-    onNavigateToSettings: () -> Unit,
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {},
     modifier: Modifier = Modifier
 )

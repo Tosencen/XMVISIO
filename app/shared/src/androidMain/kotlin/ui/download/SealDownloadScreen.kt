@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import com.xmvisio.app.ui.components.UpdateButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,8 +24,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SealDownloadScreen(
-    downloadManager: IDownloadManager,
-    onNavigateToSettings: () -> Unit,
+    downloadManager: com.xmvisio.app.download.SealDownloadManager,
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -50,7 +52,15 @@ fun SealDownloadScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         topBar = {
             TopAppBar(
-                title = { Text("下载") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("下载")
+                        if (updateAvailable) {
+                            Spacer(Modifier.width(4.dp))
+                            UpdateButton(onClick = onUpdateCheck)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
                 ),
@@ -186,9 +196,6 @@ fun SealDownloadScreen(
                         }
                     }
                     
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "设置")
-                    }
                 }
             )
         },

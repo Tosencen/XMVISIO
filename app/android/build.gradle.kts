@@ -28,11 +28,11 @@ android {
     }
     
     // 确保 youtubedl-android 的 native 库被正确打包
+    // 不使用 useLegacyPackaging，让 AGP 新打包管道自动处理 16KB 对齐
     packaging {
         jniLibs {
-            useLegacyPackaging = true
-            // 保留所有 native 库，包括 libc++_shared.so
-            pickFirsts.add("lib/*/libc++_shared.so")
+            // libc++_shared.so 下载损坏（空 HTML 文件），且没有 native 库依赖它，排除掉
+            excludes.add("lib/**/libc++_shared.so")
         }
         resources {
             excludes += setOf(
@@ -92,6 +92,11 @@ dependencies {
     
     // 媒体支持
     implementation(libs.androidx.media)
+    
+    // Media3 (ExoPlayer) - 视频播放
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui.compose)
+    implementation(libs.androidx.media3.session)
     
     // 网络请求 - OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

@@ -8,11 +8,13 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.xmvisio.app.data.audiobook.AudiobookId
 import com.xmvisio.app.data.audiobook.BookCategory
 import com.xmvisio.app.ui.audiobook.*
+import com.xmvisio.app.ui.components.UpdateButton
 
 /**
  * 有声书页面
@@ -21,6 +23,8 @@ import com.xmvisio.app.ui.audiobook.*
 @Composable
 expect fun AudiobookScreen(
     onNavigateToPlayer: (Any) -> Unit = {},
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {},
     modifier: Modifier = Modifier
 )
 
@@ -30,7 +34,9 @@ expect fun AudiobookScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudiobookScreenCommon(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {}
 ) {
     // 临时状态管理（后续会用 ViewModel）
     var layoutMode by remember { mutableStateOf(LayoutMode.LIST) }
@@ -41,7 +47,15 @@ fun AudiobookScreenCommon(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("有声书") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("有声书")
+                        if (updateAvailable) {
+                            Spacer(Modifier.width(4.dp))
+                            UpdateButton(onClick = onUpdateCheck)
+                        }
+                    }
+                },
                 actions = {
                     // 临时：切换空状态/列表状态（用于测试）
                     TextButton(

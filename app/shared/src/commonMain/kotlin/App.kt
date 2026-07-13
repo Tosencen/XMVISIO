@@ -1,6 +1,5 @@
 package com.xmvisio.app
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -8,8 +7,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.VideoFile
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
@@ -24,8 +25,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.ui.main.AudiobookScreen
 import com.xmvisio.app.ui.main.DownloadsScreen
+import com.xmvisio.app.ui.main.VideoScreen
+import com.xmvisio.app.ui.player.VideoPlayerScreen
 import com.xmvisio.app.ui.theme.AppTheme
 
 /**
@@ -38,7 +42,11 @@ expect fun AppWithUpdateCheck(updateViewModel: Any, openPlayerAudioId: Long? = n
  * XMVISIO 应用入口
  */
 @Composable
-fun App(openPlayerAudioId: Long? = null) {
+fun App(
+    openPlayerAudioId: Long? = null,
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {}
+) {
     val themeSettingsManager = remember { com.xmvisio.app.data.createThemeSettingsManager() }
     
     // 使用 produceState 确保在主题加载完成前不渲染 UI，避免颜色闪烁
@@ -77,7 +85,9 @@ fun App(openPlayerAudioId: Long? = null) {
                 composable("main") {
                     MainScreen(
                         onNavigateToSettings = { navController.navigate("settings") },
-                        openPlayerAudioId = openPlayerAudioId
+                        openPlayerAudioId = openPlayerAudioId,
+                        updateAvailable = updateAvailable,
+                        onUpdateCheck = onUpdateCheck
                     )
                 }
                 composable("settings") {
@@ -111,13 +121,18 @@ fun App(openPlayerAudioId: Long? = null) {
 fun MainScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    openPlayerAudioId: Long? = null
+    openPlayerAudioId: Long? = null,
+    updateAvailable: Boolean = false,
+    onUpdateCheck: () -> Unit = {}
 ) {
     // 使用 rememberSaveable 保存选中的 tab，避免从设置页返回时状态丢失
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.AUDIOBOOK) }
 
     var showPlayer by rememberSaveable { mutableStateOf(false) }
     var audioToPlay by remember { mutableStateOf<Any?>(null) }
+
+    var showVideoPlayer by rememberSaveable { mutableStateOf(false) }
+    var videoToPlay by remember { mutableStateOf<VideoInfo?>(null) }
 
     // 如果有 openPlayerAudioId，从通知点击进来，直接打开播放器
     // 这个功能只在 Android 上可用
@@ -156,24 +171,51 @@ fun MainScreen(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             navigationContainerColor = MaterialTheme.colorScheme.surfaceContainer
         ) {
-            when (selectedTab) {
-                MainTab.AUDIOBOOK -> AudiobookScreen(
-                    onNavigateToPlayer = { audio ->
-                        audioToPlay = audio
-                        showPlayer = true
-                    }
-                )
-                MainTab.DOWNLOADS -> DownloadsScreen(onNavigateToSettings = onNavigateToSettings)
+            Box(Modifier.fillMaxSize()) {
+                when (selectedTab) {
+                    MainTab.AUDIOBOOK -> AudiobookScreen(
+                        onNavigateToPlayer = { audio ->
+                            audioToPlay = audio
+                            showPlayer = true
+                        },
+                        updateAvailable = updateAvailable,
+                        onUpdateCheck = onUpdateCheck
+                    )
+                    MainTab.DOWNLOADS -> DownloadsScreen(
+                        updateAvailable = updateAvailable,
+                        onUpdateCheck = onUpdateCheck
+                    )
+                    MainTab.VIDEO -> VideoScreen(
+                        onNavigateToPlayer = { video ->
+                            videoToPlay = video
+                            showVideoPlayer = true
+                        },
+                        onNavigateToSettings = onNavigateToSettings,
+                        updateAvailable = updateAvailable,
+                        onUpdateCheck = onUpdateCheck
+                    )
+                }
             }
         }
 
-        // 播放器全屏显示
+        // 音频播放器全屏显示
         if (showPlayer && audioToPlay != null) {
             com.xmvisio.app.ui.player.AudioPlayerScreenWrapper(
                 audio = audioToPlay!!,
                 onClose = {
                     showPlayer = false
                     audioToPlay = null
+                }
+            )
+        }
+
+        // 视频播放器全屏显示
+        if (showVideoPlayer && videoToPlay != null) {
+            VideoPlayerScreen(
+                video = videoToPlay!!,
+                onClose = {
+                    showVideoPlayer = false
+                    videoToPlay = null
                 }
             )
         }
@@ -197,6 +239,11 @@ enum class MainTab(
         label = "下载",
         selectedIcon = Icons.Filled.Download,
         unselectedIcon = Icons.Outlined.Download
+    ),
+    VIDEO(
+        label = "视频",
+        selectedIcon = Icons.Filled.VideoFile,
+        unselectedIcon = Icons.Outlined.VideoFile
     )
 }
 
