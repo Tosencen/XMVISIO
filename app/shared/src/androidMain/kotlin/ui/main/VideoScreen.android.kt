@@ -53,6 +53,7 @@ import androidx.core.content.ContextCompat
 import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.ui.components.UpdateButton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -64,6 +65,7 @@ actual fun VideoScreen(
     modifier: Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val videoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_VIDEO
@@ -380,6 +382,7 @@ actual fun VideoScreen(
 
     // 重命名对话框
     if (showRenameDialog && selectedVideo != null) {
+        val video = selectedVideo!!
         AlertDialog(
             onDismissRequest = { showRenameDialog = false },
             title = { Text("重命名") },
@@ -393,7 +396,21 @@ actual fun VideoScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showRenameDialog = false }) { Text("确定") }
+                TextButton(onClick = {
+                    scope.launch {
+                        val extension = video.name.substringAfterLast(".", "")
+                        val finalName = if (extension.isNotEmpty()) "$renameText.$extension" else renameText
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val values = android.content.ContentValues().apply {
+                                    put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, finalName)
+                                }
+                                context.contentResolver.update(android.net.Uri.parse(video.uri), values, null, null)
+                            }
+                        } catch (_: Exception) { }
+                        showRenameDialog = false
+                    }
+                }) { Text("确定") }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) { Text("取消") }
@@ -403,14 +420,25 @@ actual fun VideoScreen(
 
     // 删除确认对话框
     if (showDeleteDialog && selectedVideo != null) {
+        val video = selectedVideo!!
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("删除视频") },
             text = {
-                Text("确定要删除「${selectedVideo!!.name}」吗？此操作无法撤销。")
+                Text("确定要删除「${video.name}」吗？此操作无法撤销。")
             },
             confirmButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                context.contentResolver.delete(android.net.Uri.parse(video.uri), null, null)
+                            }
+                            sortedVideos.let { }
+                        } catch (_: Exception) { }
+                        showDeleteDialog = false
+                    }
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
