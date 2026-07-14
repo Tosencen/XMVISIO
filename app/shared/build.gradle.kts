@@ -66,7 +66,7 @@ kotlin {
             implementation(libs.datastore.preferences)
             
             // OkHttp for network requests
-            implementation("com.squareup.okhttp3:okhttp:4.12.0")
+            implementation(libs.okhttp)
             
             // JSON serialization
             implementation(libs.kotlinx.serialization.json)

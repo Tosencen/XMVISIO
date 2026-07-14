@@ -523,7 +523,7 @@ internal fun AudiobookScreenImpl(
                     ) {
                         EmptyState(
                             title = "需要存储权限",
-                            subtitle = "请授予存储权限以扫描和导入音频文件"
+                            subtitle = "需要存储权限才能扫描本地的音频文件"
                         )
                         
                         Spacer(modifier = Modifier.height(16.dp))
@@ -553,7 +553,7 @@ internal fun AudiobookScreenImpl(
                     ) {
                         EmptyState(
                             title = "权限被拒绝",
-                            subtitle = "请在系统设置中手动授予存储权限"
+                            subtitle = "要到系统设置里手动开一下权限"
                         )
                         
                         Spacer(modifier = Modifier.height(16.dp))
@@ -583,7 +583,7 @@ internal fun AudiobookScreenImpl(
                     } else if (audioList.isEmpty() && !isSearching) {
                         EmptyState(
                             title = "还没有音频文件",
-                            subtitle = "设备上没有找到音频文件"
+                            subtitle = "手机里没找到音频文件"
                         )
                     } else if (filteredAudioList.isEmpty() && searchQuery.isNotBlank()) {
                         // 搜索无结果

@@ -1,12 +1,10 @@
 package com.xmvisio.app.ui.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -113,7 +111,7 @@ fun ThemeSettingsPage(
                     SettingsSwitchItem(
                         title = "动态颜色",
                         description = if (supportDynamic) {
-                            "使用动态配色方案（Android 12+ 从壁纸提取，其他平台基于种子颜色）"
+                            "从壁纸取色，跟随系统主题色（Android 12+ 支持）"
                         } else {
                             "当前平台不支持动态颜色"
                         },
@@ -225,8 +223,8 @@ private fun SettingsSwitchItem(
     
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(24.dp)
     ) {
         ListItem(
             headlineContent = { 

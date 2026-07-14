@@ -5,8 +5,8 @@
         name="updates"
         path="updates/" />
     
-    <!-- 外部存储根目录 -->
+    <!-- 外部存储应用目录 -->
     <external-path
         name="external"
-        path="." />
+        path="Android/data/com.xmvisio.app/" />
 </paths>

@@ -46,3 +46,10 @@ Pods/
 *.temp
 *.swp
 *~
+
+# Signing keystores
+*.keystore
+*.jks
+
+# Project data
+data/

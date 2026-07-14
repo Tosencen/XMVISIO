@@ -1,22 +1,18 @@
 package com.xmvisio.app.ui.settings
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/**
- * 关于 XMVISIO 对话框
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutDialog(
@@ -49,71 +45,107 @@ fun AboutDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // 版本信息
-                InfoSection(
-                    icon = Icons.Default.Tag,
-                    title = "版本信息",
-                    content = "v$currentVersion"
-                )
-                
-                HorizontalDivider()
-                
-                // 应用描述
-                InfoSection(
-                    icon = Icons.Default.Description,
-                    title = "应用简介",
-                    content = "XMVISIO 是一款基于 Kotlin Multiplatform 和 Compose Multiplatform 构建的现代化媒体应用。支持本地音频播放、有声书管理等功能。"
-                )
-                
-                HorizontalDivider()
-                
-                // 主要特性
-                InfoSection(
-                    icon = Icons.Default.Star,
-                    title = "主要特性",
-                    content = """
-                        • 📱 原生 Android 应用
-                        • 🎨 Material 3 现代 UI
-                        • 🌓 深色/浅色主题切换
-                        • 🎵 本地音频播放
-                        • 📚 有声书管理
-                        • 🔄 自动更新检测
-                    """.trimIndent()
-                )
-                
-                HorizontalDivider()
-                
+                // 版本
+                Column {
+                    Text(
+                        text = "版本信息",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "v$currentVersion",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 简介
+                Column {
+                    Text(
+                        text = "应用简介",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "XMVISIO 是一个本地的媒体播放器，支持音频播放、有声书管理，也能下载在线视频和音频。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 特性
+                Column {
+                    Text(
+                        text = "主要特性",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "本地音频播放\n有声书管理\n视频下载\n深色/浅色主题\n自动更新检测",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 // 技术栈
-                InfoSection(
-                    icon = Icons.Default.Code,
-                    title = "技术栈",
-                    content = """
-                        • Kotlin Multiplatform
-                        • Compose Multiplatform
-                        • Material 3 Design
-                        • Coroutines & Flow
-                    """.trimIndent()
-                )
-                
-                HorizontalDivider()
-                
-                // 版权信息
-                InfoSection(
-                    icon = Icons.Default.Copyright,
-                    title = "版权信息",
-                    content = "© 2025 XMVISIO\nMIT License"
-                )
-                
-                HorizontalDivider()
-                
-                // GitHub 仓库
-                InfoSection(
-                    icon = Icons.Default.Link,
-                    title = "开源仓库",
-                    content = "github.com/Tosencen/XMVISIO"
-                )
+                Column {
+                    Text(
+                        text = "技术栈",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Kotlin Multiplatform\nCompose Multiplatform\nMaterial 3 Design\nCoroutines & Flow",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 版权
+                Column {
+                    Text(
+                        text = "版权信息",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "© 2026 XMVISIO · MIT License",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 开源仓库
+                Column {
+                    Text(
+                        text = "开源仓库",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "github.com/Tosencen/XMVISIO",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable {
+                            com.xmvisio.app.util.openUrl("https://github.com/Tosencen/XMVISIO")
+                        }
+                    )
+                }
             }
         },
         confirmButton = {
@@ -122,43 +154,4 @@ fun AboutDialog(
             }
         }
     )
-}
-
-/**
- * 信息区块组件
- */
-@Composable
-private fun InfoSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    content: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
 }

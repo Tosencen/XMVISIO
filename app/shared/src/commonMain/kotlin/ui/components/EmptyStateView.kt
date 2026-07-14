@@ -1,8 +1,8 @@
-package com.xmvisio.app.ui.audiobook
+package com.xmvisio.app.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -13,9 +13,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun EmptyState(
-    title: String,
-    subtitle: String,
+fun EmptyStateView(
+    message: String,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -26,7 +25,7 @@ fun EmptyState(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Headphones,
+            imageVector = Icons.Default.VideoLibrary,
             contentDescription = null,
             modifier = Modifier.size(72.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
@@ -35,18 +34,9 @@ fun EmptyState(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = title,
+            text = message,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
         )
     }

@@ -213,34 +213,9 @@ fun SealDownloadScreen(
         }
     ) { paddingValues ->
         if (downloads.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = null,
-                        modifier = Modifier.size(88.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                    )
-                    Text(
-                        "暂无下载任务",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Text(
-                        "点击右下角按钮添加下载",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-            }
+            com.xmvisio.app.ui.components.EmptyStateView(
+                message = "暂无下载任务"
+            )
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -263,7 +238,6 @@ fun SealDownloadScreen(
     
     if (showAddDialog) {
         var selectedType by remember { mutableStateOf(com.xmvisio.app.download.DownloadType.AUDIO) }
-        val context = LocalContext.current
         
         AlertDialog(
             onDismissRequest = { if (!isDownloading) showAddDialog = false },

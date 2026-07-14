@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SettingsScreen(
     onNavigateToTheme: () -> Unit,
+    onNavigateToVideoPlayerSettings: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -75,7 +76,8 @@ fun SettingsScreen(
 
             SettingsCardGroup {
                 PlaybackSettingsSection(
-                    onNavigateToTheme = onNavigateToTheme
+                    onNavigateToTheme = onNavigateToTheme,
+                    onNavigateToVideoPlayerSettings = onNavigateToVideoPlayerSettings
                 )
             }
 
@@ -91,7 +93,7 @@ fun SettingsScreen(
                 SettingsCardItem(
                     icon = Icons.Filled.SystemUpdate,
                     title = "软件更新",
-                    subtitle = "检查并更新到最新版本",
+                    subtitle = "检查新版本，更新到最新",
                     trailingText = "v$currentVersion",
                     onClick = { showUpdateDialog = true },
                     isFirst = true
@@ -100,7 +102,7 @@ fun SettingsScreen(
                 SettingsCardItem(
                     icon = Icons.Filled.Feedback,
                     title = "功能反馈",
-                    subtitle = "提交问题、建议或反馈",
+                    subtitle = "提个建议，报个问题",
                     onClick = {
                         com.xmvisio.app.util.openUrl("https://github.com/Tosencen/XMVISIO/issues")
                     }
@@ -109,7 +111,7 @@ fun SettingsScreen(
                 SettingsCardItem(
                     icon = Icons.Filled.Info,
                     title = "关于 XMVISIO",
-                    subtitle = "查看应用信息、版本、版权",
+                    subtitle = "版本信息、版权、应用介绍",
                     onClick = { showAboutDialog = true },
                     isLast = true
                 )
@@ -133,7 +135,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsCardGroup(
+internal fun SettingsCardGroup(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(

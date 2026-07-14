@@ -18,21 +18,26 @@
     
     <!-- 前台服务和通知权限 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     
     <application
         android:name="com.xmvisio.app.XmvisioApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="XMVISIO"
         android:supportsRtl="true"
+        android:resizeableActivity="true"
         android:theme="@style/Theme.XMVISIO">
         
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.XMVISIO">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

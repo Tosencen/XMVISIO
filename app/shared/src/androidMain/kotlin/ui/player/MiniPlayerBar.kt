@@ -95,6 +95,11 @@ fun MiniPlayerBar(
                     elevation = 8.dp,
                     shape = RoundedCornerShape(32.dp),
                     clip = false
+                )
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(32.dp)
                 ),
             tonalElevation = 0.dp,
             shape = RoundedCornerShape(32.dp),

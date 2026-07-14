@@ -84,6 +84,9 @@ google-firebase = "22.0.1"
 posthog-android = "3.11.3"
 posthog-java = "1.2.0"
 openapi-generator = "7.13.0"
+okhttp = "4.12.0"
+lottie = "6.6.0"
+logback-android = "3.0.0"
 
 [plugins]
 compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "compose-hot-reload" }
@@ -152,7 +155,7 @@ log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "lo
 log4j-slf4j-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j-core" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
-logback-android = { module = "com.github.tony19:logback-android", version = "3.0.0" }
+logback-android = { module = "com.github.tony19:logback-android", version.ref = "logback-android" }
 
 # Coil 
 # https://github.com/coil-kt/coil
@@ -263,6 +266,7 @@ materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "ma
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 squigglyslider = { module = "me.saket.squigglyslider:squigglyslider", version.ref = "squigglyslider" }
 constraintlayout-compose = { module = "tech.annexflow.compose:constraintlayout-compose-multiplatform", version.ref = "constraintlayout-compose" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 bytebuddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "bytebuddy" }
 bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
 sentry-kotlin-multiplatform = { module = "io.sentry:sentry-kotlin-multiplatform", version.ref = "sentry-kotlin-multiplatform" }
@@ -280,8 +284,8 @@ youtubedl-android-ffmpeg = { module = "io.github.junkfood02.youtubedl-android:ff
 youtubedl-android-aria2c = { module = "io.github.junkfood02.youtubedl-android:aria2c", version.ref = "youtubedl-android" }
 
 # Lottie - 动画库
-lottie = { module = "com.airbnb.android:lottie", version = "6.6.0" }
+lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
 
 # Haze - 毛玻璃效果库
-haze-core = { module = "dev.chrisbanes.haze:haze", version = "1.2.0" }
+haze-core = { module = "dev.chrisbanes.haze:haze", version = "1.1.0" }
 haze-materials = { module = "dev.chrisbanes.haze:haze-materials", version = "1.1.0" }

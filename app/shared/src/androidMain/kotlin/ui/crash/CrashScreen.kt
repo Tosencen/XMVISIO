@@ -81,7 +81,7 @@ fun CrashScreen(
             
             // 副标题
             Text(
-                text = "我们已记录此错误，您可以尝试重启应用",
+                text = "出了点问题，重启应用试试",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
             )

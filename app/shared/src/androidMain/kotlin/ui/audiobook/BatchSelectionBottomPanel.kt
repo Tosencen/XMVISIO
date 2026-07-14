@@ -50,7 +50,8 @@ fun BatchSelectionBottomPanel(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             shadowElevation = 8.dp
         ) {
             Column(

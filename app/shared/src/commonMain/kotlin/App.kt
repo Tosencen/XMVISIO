@@ -93,6 +93,7 @@ fun App(
                 composable("settings") {
                     com.xmvisio.app.ui.settings.SettingsScreen(
                         onNavigateToTheme = { navController.navigate("theme_settings") },
+                        onNavigateToVideoPlayerSettings = { navController.navigate("video_player_settings") },
                         onBack = { navController.popBackStack() }
                     )
                 }
@@ -104,6 +105,11 @@ fun App(
                                 themeSettingsManager.saveThemeSettings(newSettings)
                             }
                         },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("video_player_settings") {
+                    com.xmvisio.app.ui.settings.VideoPlayerPreferencesScreen(
                         onBack = { navController.popBackStack() }
                     )
                 }
@@ -255,8 +261,6 @@ expect fun HandleOpenPlayerRequest(
     audioId: Long,
     onAudioFound: (Any) -> Unit
 )
-
-@OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
 expect fun PlatformInfo()

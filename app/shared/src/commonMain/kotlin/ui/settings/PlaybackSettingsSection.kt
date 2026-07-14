@@ -4,5 +4,6 @@ import androidx.compose.runtime.Composable
 
 @Composable
 expect fun PlaybackSettingsSection(
-    onNavigateToTheme: () -> Unit
+    onNavigateToTheme: () -> Unit,
+    onNavigateToVideoPlayerSettings: () -> Unit
 )
