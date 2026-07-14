@@ -6,7 +6,7 @@ import com.xmvisio.app.data.VideoInfo
 
 @Composable
 expect fun VideoScreen(
-    onNavigateToPlayer: (VideoInfo) -> Unit = {},
+    onNavigateToPlayer: (VideoInfo, List<VideoInfo>) -> Unit = { _, _ -> },
     onNavigateToSettings: () -> Unit = {},
     updateAvailable: Boolean = false,
     onUpdateCheck: () -> Unit = {},

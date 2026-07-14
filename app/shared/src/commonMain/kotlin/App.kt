@@ -27,7 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.ui.main.AudiobookScreen
-import com.xmvisio.app.ui.main.DownloadsScreen
+//import com.xmvisio.app.ui.main.DownloadsScreen
 import com.xmvisio.app.ui.main.VideoScreen
 import com.xmvisio.app.ui.player.VideoPlayerScreen
 import com.xmvisio.app.ui.theme.AppTheme
@@ -139,6 +139,8 @@ fun MainScreen(
 
     var showVideoPlayer by rememberSaveable { mutableStateOf(false) }
     var videoToPlay by remember { mutableStateOf<VideoInfo?>(null) }
+    var videoList by remember { mutableStateOf<List<VideoInfo>>(emptyList()) }
+    var videoIndex by remember { mutableIntStateOf(0) }
 
     // 如果有 openPlayerAudioId，从通知点击进来，直接打开播放器
     // 这个功能只在 Android 上可用
@@ -187,13 +189,15 @@ fun MainScreen(
                         updateAvailable = updateAvailable,
                         onUpdateCheck = onUpdateCheck
                     )
-                    MainTab.DOWNLOADS -> DownloadsScreen(
+                    /*MainTab.DOWNLOADS -> DownloadsScreen(
                         updateAvailable = updateAvailable,
                         onUpdateCheck = onUpdateCheck
-                    )
+                    )*/
                     MainTab.VIDEO -> VideoScreen(
-                        onNavigateToPlayer = { video ->
+                        onNavigateToPlayer = { video, videos ->
                             videoToPlay = video
+                            videoList = videos
+                            videoIndex = videos.indexOfFirst { it.id == video.id }.coerceAtLeast(0)
                             showVideoPlayer = true
                         },
                         onNavigateToSettings = onNavigateToSettings,
@@ -219,9 +223,15 @@ fun MainScreen(
         if (showVideoPlayer && videoToPlay != null) {
             VideoPlayerScreen(
                 video = videoToPlay!!,
+                videos = videoList,
+                currentIndex = videoIndex,
                 onClose = {
                     showVideoPlayer = false
                     videoToPlay = null
+                },
+                onNavigateToVideo = { index ->
+                    videoIndex = index
+                    videoToPlay = videoList.getOrNull(index)
                 }
             )
         }
@@ -241,11 +251,11 @@ enum class MainTab(
         selectedIcon = Icons.Filled.AudioFile,
         unselectedIcon = Icons.Outlined.AudioFile
     ),
-    DOWNLOADS(
+    /*DOWNLOADS(
         label = "下载",
         selectedIcon = Icons.Filled.Download,
         unselectedIcon = Icons.Outlined.Download
-    ),
+    ),*/
     VIDEO(
         label = "视频",
         selectedIcon = Icons.Filled.VideoFile,

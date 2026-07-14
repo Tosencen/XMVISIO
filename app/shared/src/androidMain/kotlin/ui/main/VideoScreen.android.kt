@@ -34,11 +34,11 @@ import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -56,12 +56,13 @@ import androidx.core.content.ContextCompat
 import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.ui.components.UpdateButton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
 actual fun VideoScreen(
-    onNavigateToPlayer: (VideoInfo) -> Unit,
+    onNavigateToPlayer: (VideoInfo, List<VideoInfo>) -> Unit,
     onNavigateToSettings: () -> Unit,
     updateAvailable: Boolean,
     onUpdateCheck: () -> Unit,
@@ -174,6 +175,7 @@ actual fun VideoScreen(
 
     LaunchedEffect(hasPermission, refreshTrigger) {
         if (hasPermission) {
+            delay(300)
             withContext(Dispatchers.IO) {
                 videos = queryVideos(context)
                 isLoading = false
@@ -196,9 +198,6 @@ actual fun VideoScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { refreshTrigger++ }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "刷新")
-                    }
                     IconButton(onClick = { showQuickSettings = true }) {
                         Icon(Icons.Default.Dashboard, contentDescription = "快速设置")
                     }
@@ -219,6 +218,11 @@ actual fun VideoScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            PullToRefreshBox(
+                isRefreshing = false,
+                onRefresh = { refreshTrigger++ },
+                modifier = Modifier.fillMaxSize()
+            ) {
             when {
                 isLoading -> {
                     CircularProgressIndicator(
@@ -264,7 +268,7 @@ actual fun VideoScreen(
                         VideoGrid(
                             videos = sortedVideos,
                             state = gridState,
-                            onVideoClick = onNavigateToPlayer,
+                            onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
                             onVideoLongClick = { video ->
                                 selectedVideo = video
                                 showVideoMenu = true
@@ -274,15 +278,16 @@ actual fun VideoScreen(
                         VideoList(
                             videos = sortedVideos,
                             state = listState,
-                            onVideoClick = onNavigateToPlayer,
+                            onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
                             onVideoLongClick = { video ->
                                 selectedVideo = video
                                 showVideoMenu = true
                             }
                         )
-                    }
                 }
             }
+            }
+        }
         }
 
         if (showQuickSettings) {
@@ -383,7 +388,7 @@ actual fun VideoScreen(
                 )
 
                 Surface(onClick = {
-                    renameText = video.name.substringBeforeLast(".")
+                    renameText = ""
                     showRenameDialog = true
                     showVideoMenu = false
                 }) {
@@ -445,14 +450,21 @@ actual fun VideoScreen(
                     value = renameText,
                     onValueChange = { renameText = it },
                     label = { Text("新名称") },
+                    placeholder = {
+                        Text(
+                            video.name.substringBeforeLast("."),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
+                    val newName = renameText.ifBlank { video.name }
                     val extension = video.name.substringAfterLast(".", "")
-                    val finalName = if (extension.isNotEmpty()) "$renameText.$extension" else renameText
+                    val finalName = if (extension.isNotEmpty()) "$newName.$extension" else newName
                     val uri = android.net.Uri.parse(video.uri)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         try {
@@ -566,7 +578,7 @@ private fun VideoGrid(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(videos, key = { it.id }) { video ->
-            VideoCard(video = video, onClick = { onVideoClick(video) }, onLongClick = { onVideoLongClick(video) })
+                    VideoCard(video = video, onClick = { onVideoClick(video) }, onLongClick = { onVideoLongClick(video) })
         }
     }
 }

@@ -13,9 +13,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -45,6 +49,7 @@ import com.xmvisio.app.data.ScreenOrientation
 import com.xmvisio.app.data.VideoContentScale
 import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.data.VideoPlayerPreferencesManager
+import com.xmvisio.app.ui.foundation.PlayingAnimation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.abs
@@ -54,14 +59,19 @@ import kotlin.math.roundToInt
 @Composable
 actual fun VideoPlayerScreen(
     video: VideoInfo,
+    videos: List<VideoInfo>,
+    currentIndex: Int,
     onClose: () -> Unit,
+    onNavigateToVideo: (Int) -> Unit,
     modifier: Modifier
 ) {
     val context = LocalContext.current
     val prefsManager = remember { VideoPlayerPreferencesManager.getInstance(context) }
     val prefs by prefsManager.preferences.collectAsState()
+    val sliderStyleManager = remember { com.xmvisio.app.data.SliderStyleManager.getInstance(context) }
+    val sliderStyle by sliderStyleManager.sliderStyle.collectAsState()
 
-    val player = remember {
+    val player = remember(video.id) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(video.uri)))
             prepare()
@@ -75,7 +85,7 @@ actual fun VideoPlayerScreen(
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(video.id) {
         onDispose { player.release() }
     }
 
@@ -87,12 +97,13 @@ actual fun VideoPlayerScreen(
     var playbackSpeed by remember { mutableFloatStateOf(prefs.defaultPlaybackSpeed) }
     var loopMode by remember { mutableStateOf(prefs.loopMode) }
     var isBuffering by remember { mutableStateOf(false) }
+    var isSeeking by remember { mutableStateOf(false) }
 
     LaunchedEffect(player) {
         player.addListener(object : androidx.media3.common.Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
             override fun onPlaybackStateChanged(state: Int) {
-                isBuffering = state == Player.STATE_BUFFERING
+                isBuffering = state == Player.STATE_BUFFERING && !isSeeking
             }
         })
     }
@@ -114,11 +125,9 @@ actual fun VideoPlayerScreen(
     var longPressSpeedDisplay by remember { mutableFloatStateOf(2f) }
 
     // 双击状态
-    var lastTapTime by remember { mutableLongStateOf(0L) }
-    var lastTapX by remember { mutableFloatStateOf(0f) }
-    var lastTapY by remember { mutableFloatStateOf(0f) }
     var doubleTapSide by remember { mutableStateOf(0) } // -1=左, 0=中, 1=右
     var showDoubleTapIndicator by remember { mutableStateOf(false) }
+    var dragStartPosition by remember { mutableLongStateOf(0L) } // seek 起始位置
 
     // 侧滑面板状态
     var activeOverlayPanel by remember { mutableStateOf(OverlayPanelType.NONE) }
@@ -149,6 +158,7 @@ actual fun VideoPlayerScreen(
         if (showSeekIndicator) {
             delay(600)
             showSeekIndicator = false
+            isSeeking = false
         }
     }
 
@@ -217,40 +227,44 @@ actual fun VideoPlayerScreen(
                         },
                         onDoubleTap = { offset ->
                             if (prefs.controlsLocked || prefs.doubleTapGesture == DoubleTapGesture.NONE) return@detectTapGestures
-                            val now = System.currentTimeMillis()
                             val centerX = size.width / 2f
-                            val diff = now - lastTapTime
-
-                            if (diff < 300 && abs(offset.y - lastTapY) < 100) {
-                                // 双击检测
-                                when {
-                                    prefs.doubleTapGesture == DoubleTapGesture.PLAY_PAUSE ||
-                                    (prefs.doubleTapGesture == DoubleTapGesture.BOTH && abs(offset.x - centerX) < size.width * 0.2f) -> {
-                                        if (player.isPlaying) player.pause() else player.play()
+                            when (prefs.doubleTapGesture) {
+                                DoubleTapGesture.PLAY_PAUSE -> {
+                                    if (player.isPlaying) player.pause() else player.play()
+                                }
+                                DoubleTapGesture.FAST_FORWARD_AND_REWIND -> {
+                                    val seekMs = prefs.seekIncrement * 1000L
+                                    isSeeking = true
+                                    if (offset.x < centerX) {
+                                        player.seekTo((player.currentPosition - seekMs).coerceAtLeast(0))
+                                        seekIndicator = -seekMs
+                                        doubleTapSide = -1
+                                    } else {
+                                        player.seekTo((player.currentPosition + seekMs).coerceAtMost(player.duration))
+                                        seekIndicator = seekMs
+                                        doubleTapSide = 1
                                     }
-                                    else -> {
+                                    showDoubleTapIndicator = true
+                                }
+                                DoubleTapGesture.BOTH -> {
+                                    if (abs(offset.x - centerX) < size.width * 0.15f) {
+                                        if (player.isPlaying) player.pause() else player.play()
+                                    } else {
                                         val seekMs = prefs.seekIncrement * 1000L
+                                        isSeeking = true
                                         if (offset.x < centerX) {
-                                            // 左侧：后退
-                                            val newPos = (player.currentPosition - seekMs).coerceAtLeast(0)
-                                            player.seekTo(newPos)
+                                            player.seekTo((player.currentPosition - seekMs).coerceAtLeast(0))
                                             seekIndicator = -seekMs
                                             doubleTapSide = -1
                                         } else {
-                                            // 右侧：前进
-                                            val newPos = (player.currentPosition + seekMs).coerceAtMost(player.duration)
-                                            player.seekTo(newPos)
+                                            player.seekTo((player.currentPosition + seekMs).coerceAtMost(player.duration))
                                             seekIndicator = seekMs
                                             doubleTapSide = 1
                                         }
                                         showDoubleTapIndicator = true
                                     }
                                 }
-                                lastTapTime = 0
-                            } else {
-                                lastTapTime = now
-                                lastTapX = offset.x
-                                lastTapY = offset.y
+                                else -> {}
                             }
                         },
                         onLongPress = {
@@ -265,7 +279,8 @@ actual fun VideoPlayerScreen(
                     detectDragGestures(
                         onDragStart = { offset ->
                             val thirdWidth = size.width / 3f
-                            // 记录起始区域
+                            dragStartPosition = player.currentPosition
+                            seekIndicator = 0L
                         },
                         onDragEnd = {
                             if (isLongPressing) {
@@ -274,6 +289,7 @@ actual fun VideoPlayerScreen(
                             }
                             volumeIndicator = -1f
                             brightnessIndicator = -1f
+                            showSeekIndicator = false
                         },
                         onDragCancel = {
                             if (isLongPressing) {
@@ -282,6 +298,7 @@ actual fun VideoPlayerScreen(
                             }
                             volumeIndicator = -1f
                             brightnessIndicator = -1f
+                            showSeekIndicator = false
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
@@ -290,10 +307,12 @@ actual fun VideoPlayerScreen(
 
                             val thirdWidth = size.width / 3f
                             val x = change.position.x
+                            val isVertical = abs(dragAmount.y) > abs(dragAmount.x)
+                            val isHorizontal = abs(dragAmount.x) > abs(dragAmount.y)
 
                             when {
                                 // 左侧垂直滑动 = 亮度
-                                x < thirdWidth && prefs.enableBrightnessGesture -> {
+                                x < thirdWidth && isVertical && prefs.enableBrightnessGesture -> {
                                     val sensitivity = prefs.brightnessSensitivity
                                     val delta = -dragAmount.y * sensitivity * 0.01f
                                     val currentBrightness = if (layoutParams != null) {
@@ -309,7 +328,7 @@ actual fun VideoPlayerScreen(
                                     brightnessIndicator = newBrightness
                                 }
                                 // 右侧垂直滑动 = 音量
-                                x > size.width - thirdWidth && prefs.enableVolumeGesture -> {
+                                x > size.width - thirdWidth && isVertical && prefs.enableVolumeGesture -> {
                                     val sensitivity = prefs.volumeSensitivity
                                     val delta = -dragAmount.y * sensitivity * 0.5f
                                     val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -318,12 +337,13 @@ actual fun VideoPlayerScreen(
                                     volumeIndicator = newVol.toFloat() / maxVolume
                                 }
                                 // 水平滑动 = seek
-                                abs(dragAmount.x) > abs(dragAmount.y) && prefs.enableSeekGesture -> {
+                                isHorizontal && prefs.enableSeekGesture -> {
                                     val sensitivity = prefs.seekSensitivity
                                     val seekAmount = dragAmount.x * sensitivity * 50f
                                     val delta = seekAmount.toLong()
                                     val newPos = (player.currentPosition + delta).coerceIn(0, player.duration)
-                                    seekIndicator = delta
+                                    seekIndicator = newPos - dragStartPosition
+                                    isSeeking = true
                                     player.seekTo(newPos)
                                     showSeekIndicator = true
                                 }
@@ -409,94 +429,74 @@ actual fun VideoPlayerScreen(
             }
         }
 
-        // === 音量指示器 ===
+        // === 音量指示器（水平居中，画面中上方） ===
         if (volumeIndicator >= 0f) {
             Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(64.dp)
-                    .align(Alignment.CenterEnd)
-                    .background(Color.Black.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 24.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .padding(top = 80.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.VolumeUp,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Icon(Icons.Default.VolumeUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .height(120.dp)
+                            .width(100.dp)
+                            .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(Color.White.copy(alpha = 0.3f))
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(fraction = volumeIndicator)
+                                .fillMaxWidth(fraction = volumeIndicator)
+                                .fillMaxHeight()
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(Color.White)
-                                .align(Alignment.BottomCenter)
+                                .align(Alignment.CenterStart)
                         )
                     }
-                    Text(
-                        text = "${(volumeIndicator * 100).toInt()}%",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                    Text("${(volumeIndicator * 100).toInt()}%", color = Color.White, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
 
-        // === 亮度指示器 ===
+        // === 亮度指示器（水平居中，画面中上方） ===
         if (brightnessIndicator >= 0f) {
             Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(64.dp)
-                    .align(Alignment.CenterStart)
-                    .background(Color.Black.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 24.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .padding(top = 130.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Brightness6,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Icon(Icons.Default.Brightness6, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .height(120.dp)
+                            .width(100.dp)
+                            .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(Color.White.copy(alpha = 0.3f))
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(fraction = brightnessIndicator)
+                                .fillMaxWidth(fraction = brightnessIndicator)
+                                .fillMaxHeight()
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(Color.White)
-                                .align(Alignment.BottomCenter)
+                                .align(Alignment.CenterStart)
                         )
                     }
-                    Text(
-                        text = "${(brightnessIndicator * 100).toInt()}%",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                    Text("${(brightnessIndicator * 100).toInt()}%", color = Color.White, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -513,7 +513,7 @@ actual fun VideoPlayerScreen(
                     modifier = Modifier.padding(top = 48.dp)
                 ) {
                     Text(
-                        text = "长按快进 ${longPressSpeedDisplay}x",
+                        text = "长按快进 ${longPressSpeedDisplay.toInt()}x",
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -522,34 +522,33 @@ actual fun VideoPlayerScreen(
             }
         }
 
-        // === 锁定状态：只显示锁图标 ===
-        if (prefs.controlsLocked && showControls) {
+        // === 锁定状态：锁按钮（放在控件层右上角） ===
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
-                contentAlignment = Alignment.TopEnd
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.CenterEnd
             ) {
                 IconButton(
-                    onClick = { prefsManager.setControlsLocked(false) },
-                    modifier = Modifier
-                        .padding(top = 56.dp, end = 16.dp)
-                        .size(48.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    onClick = { prefsManager.setControlsLocked(!prefs.controlsLocked) },
+                    modifier = Modifier.padding(end = 8.dp).size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "解锁",
+                        imageVector = if (prefs.controlsLocked) Icons.Default.Lock else Icons.Outlined.Lock,
+                        contentDescription = if (prefs.controlsLocked) "解锁" else "锁定",
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        // === 控件层 ===
+        // === 控件层（锁定时不显示） ===
         AnimatedVisibility(
-            visible = showControls,
+            visible = showControls && !prefs.controlsLocked,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize()
@@ -586,7 +585,7 @@ actual fun VideoPlayerScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).basicMarquee(),
                         )
                         PlayerActionButton(Icons.Default.ClosedCaption, "字幕") {
                             if (!prefs.controlsLocked) activeOverlayPanel = if (activeOverlayPanel == OverlayPanelType.SUBTITLE) OverlayPanelType.NONE else OverlayPanelType.SUBTITLE
@@ -599,41 +598,48 @@ actual fun VideoPlayerScreen(
                                 if (!prefs.controlsLocked) activeOverlayPanel = if (activeOverlayPanel == OverlayPanelType.PLAYBACK_SPEED) OverlayPanelType.NONE else OverlayPanelType.PLAYBACK_SPEED
                             }
                         }
-                        PlayerActionButton(Icons.Default.PlaylistPlay, "播放列表") { if (!prefs.controlsLocked) showPlaylist = true }
                     }
                 }
 
                 // 中间播放控制
                 Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(32.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     PlayerActionButton(
                         icon = Icons.Default.SkipPrevious,
                         contentDescription = "上一个",
-                        size = 48,
-                        onClick = { if (!prefs.controlsLocked) { val p = player.currentPosition - 10000; player.seekTo(p.coerceAtLeast(0)) } }
+                        size = 56,
+                        onClick = { if (!prefs.controlsLocked) {
+                            val idx = currentIndex - 1
+                            if (idx >= 0) onNavigateToVideo(idx)
+                        } }
                     )
                     IconButton(
                         onClick = { if (!prefs.controlsLocked) { if (player.isPlaying) player.pause() else player.play() } },
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(80.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.25f))
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "暂停" else "播放",
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(44.dp),
                             tint = Color.White
                         )
                     }
                     PlayerActionButton(
                         icon = Icons.Default.SkipNext,
                         contentDescription = "下一个",
-                        size = 48,
-                        onClick = { if (!prefs.controlsLocked) { val p = player.currentPosition + 10000; player.seekTo(p.coerceAtMost(player.duration)) } }
+                        size = 56,
+                        onClick = { if (!prefs.controlsLocked) {
+                            val idx = currentIndex + 1
+                            if (idx < videos.size) onNavigateToVideo(idx)
+                        } }
                     )
                 }
 
@@ -659,18 +665,53 @@ actual fun VideoPlayerScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White.copy(alpha = 0.8f)
                         )
-                        Slider(
-                            value = if (totalDuration > 0) (currentPosition.toFloat() / totalDuration).coerceIn(0f, 1f) else 0f,
-                            onValueChange = { fraction ->
-                                if (!prefs.controlsLocked) player.seekTo((fraction * totalDuration).toLong())
-                            },
-                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                            )
-                        )
+                        when (sliderStyle) {
+                            com.xmvisio.app.data.SliderStyle.SQUIGGLY -> {
+                                val fraction = if (totalDuration > 0) (currentPosition.toFloat() / totalDuration).coerceIn(0f, 1f) else 0f
+                                me.saket.squiggles.SquigglySlider(
+                                    value = fraction,
+                                    onValueChange = { f ->
+                                        if (!prefs.controlsLocked) {
+                                            isSeeking = true
+                                            player.seekTo((f * totalDuration).toLong())
+                                        }
+                                    },
+                                    valueRange = 0f..1f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color.White,
+                                        activeTrackColor = Color.White,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                                )
+                            }
+                            else -> {
+                                Slider(
+                                    value = currentPosition.toFloat().coerceIn(0f, totalDuration.coerceAtLeast(1L).toFloat()),
+                                    valueRange = 0f..totalDuration.coerceAtLeast(1L).toFloat(),
+                                    onValueChange = { value ->
+                                        if (!prefs.controlsLocked) {
+                                            isSeeking = true
+                                            player.seekTo(value.toLong())
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color.White,
+                                        activeTrackColor = Color.White,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                    ),
+                                    thumb = {
+                                        if (sliderStyle != com.xmvisio.app.data.SliderStyle.SLIM) {
+                                            SliderDefaults.Thumb(
+                                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                                colors = SliderDefaults.colors(thumbColor = Color.White)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
                         Text(
                             text = formatDuration(totalDuration),
                             style = MaterialTheme.typography.labelSmall,
@@ -686,12 +727,6 @@ actual fun VideoPlayerScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 锁定控件
-                        PlayerActionButton(
-                            icon = if (prefs.controlsLocked) Icons.Default.Lock else Icons.Outlined.Lock,
-                            contentDescription = if (prefs.controlsLocked) "解锁" else "锁定",
-                            onClick = { prefsManager.setControlsLocked(!prefs.controlsLocked) }
-                        )
                         PlayerActionButton(Icons.Default.AspectRatio, "缩放", onClick = {
                             if (!prefs.controlsLocked) activeOverlayPanel = if (activeOverlayPanel == OverlayPanelType.VIDEO_SCALE) OverlayPanelType.NONE else OverlayPanelType.VIDEO_SCALE
                         })
@@ -734,7 +769,10 @@ actual fun VideoPlayerScreen(
                                 }
                             }
                         )
-                        PlayerActionButton(Icons.Default.Shuffle, "随机", onClick = { })
+                        PlayerActionButton(Icons.Default.PlaylistPlay, "播放列表", onClick = {
+                            if (!prefs.controlsLocked) showPlaylist = true
+                        })
+                        // 播放列表放在主 Box 外部的 AlertDialog 中
                         PlayerActionButton(
                             icon = Icons.Default.ScreenRotation,
                             contentDescription = "旋转：${rotationLabels[rotationIndex]}",
@@ -807,29 +845,45 @@ actual fun VideoPlayerScreen(
             onDismissRequest = { showPlaylist = false },
             title = { Text("播放列表") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+                    itemsIndexed(videos) { index, v ->
+                        val isCurrent = index == currentIndex
+                        Surface(
+                            onClick = { if (!isCurrent) { showPlaylist = false; onNavigateToVideo(index) } },
+                            color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Column {
-                                Text(video.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("正在播放", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (isCurrent) {
+                                    PlayingAnimation(
+                                        modifier = Modifier.size(16.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Text(
+                                    v.name,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    v.formattedDuration,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showPlaylist = false }) { Text("关闭") }
-            }
+            confirmButton = { TextButton(onClick = { showPlaylist = false }) { Text("关闭") } }
         )
     }
 }

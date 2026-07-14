@@ -11,7 +11,10 @@ import com.xmvisio.app.data.VideoInfo
 @Composable
 actual fun VideoPlayerScreen(
     video: VideoInfo,
+    videos: List<VideoInfo>,
+    currentIndex: Int,
     onClose: () -> Unit,
+    onNavigateToVideo: (Int) -> Unit,
     modifier: Modifier
 ) {
     Surface(
