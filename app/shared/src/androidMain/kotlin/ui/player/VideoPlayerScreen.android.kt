@@ -413,16 +413,16 @@ actual fun VideoPlayerScreen(
         if (volumeIndicator >= 0f) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .align(Alignment.CenterEnd),
+                    .fillMaxHeight()
+                    .width(64.dp)
+                    .align(Alignment.CenterEnd)
+                    .background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .padding(16.dp)
+                    modifier = Modifier.padding(vertical = 24.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.VolumeUp,
@@ -459,16 +459,16 @@ actual fun VideoPlayerScreen(
         if (brightnessIndicator >= 0f) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .align(Alignment.CenterStart),
+                    .fillMaxHeight()
+                    .width(64.dp)
+                    .align(Alignment.CenterStart)
+                    .background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .padding(16.dp)
+                    modifier = Modifier.padding(vertical = 24.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Brightness6,
@@ -522,33 +522,27 @@ actual fun VideoPlayerScreen(
             }
         }
 
-        // === 锁定状态：显示解锁按钮 ===
+        // === 锁定状态：只显示锁图标 ===
         if (prefs.controlsLocked && showControls) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.TopEnd
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                IconButton(
+                    onClick = { prefsManager.setControlsLocked(false) },
+                    modifier = Modifier
+                        .padding(top = 56.dp, end = 16.dp)
+                        .size(48.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
                 ) {
-                    IconButton(
-                        onClick = { prefsManager.setControlsLocked(false) },
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = "解锁",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    Text("轻触解锁", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "解锁",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }

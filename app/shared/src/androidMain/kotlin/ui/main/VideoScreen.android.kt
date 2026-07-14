@@ -2,12 +2,14 @@ package com.xmvisio.app.ui.main
 
 import android.Manifest
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.ViewList
@@ -78,13 +81,46 @@ actual fun VideoScreen(
             PackageManager.PERMISSION_GRANTED
     ) }
     var videos by remember { mutableStateOf<List<VideoInfo>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(true)     }
+
+    var refreshTrigger by remember { mutableIntStateOf(0) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
             hasPermission = true
+        }
+    }
+
+    // Android 10+ 媒体文件写/删权限请求
+    var pendingVideoUri by remember { mutableStateOf<String?>(null) }
+    var pendingRenameName by remember { mutableStateOf<String?>(null) }
+    val mediaRequestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK && pendingVideoUri != null) {
+            scope.launch {
+                val success = withContext(Dispatchers.IO) {
+                    try {
+                        val uri = android.net.Uri.parse(pendingVideoUri!!)
+                        if (pendingRenameName != null) {
+                            val values = android.content.ContentValues().apply {
+                                put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, pendingRenameName)
+                            }
+                            context.contentResolver.update(uri, values, null, null) > 0
+                        } else {
+                            context.contentResolver.delete(uri, null, null) > 0
+                        }
+                    } catch (_: Exception) { false }
+                }
+                if (success) refreshTrigger++
+                pendingVideoUri = null
+                pendingRenameName = null
+            }
+        } else {
+            pendingVideoUri = null
+            pendingRenameName = null
         }
     }
 
@@ -136,7 +172,7 @@ actual fun VideoScreen(
         if (isGridLayout) gridState.animateScrollToItem(0) else listState.animateScrollToItem(0)
     }
 
-    LaunchedEffect(hasPermission) {
+    LaunchedEffect(hasPermission, refreshTrigger) {
         if (hasPermission) {
             withContext(Dispatchers.IO) {
                 videos = queryVideos(context)
@@ -160,6 +196,9 @@ actual fun VideoScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { refreshTrigger++ }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "刷新")
+                    }
                     IconButton(onClick = { showQuickSettings = true }) {
                         Icon(Icons.Default.Dashboard, contentDescription = "快速设置")
                     }
@@ -344,7 +383,7 @@ actual fun VideoScreen(
                 )
 
                 Surface(onClick = {
-                    renameText = video.name
+                    renameText = video.name.substringBeforeLast(".")
                     showRenameDialog = true
                     showVideoMenu = false
                 }) {
@@ -412,19 +451,34 @@ actual fun VideoScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    scope.launch {
-                        val extension = video.name.substringAfterLast(".", "")
-                        val finalName = if (extension.isNotEmpty()) "$renameText.$extension" else renameText
+                    val extension = video.name.substringAfterLast(".", "")
+                    val finalName = if (extension.isNotEmpty()) "$renameText.$extension" else renameText
+                    val uri = android.net.Uri.parse(video.uri)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         try {
-                            withContext(Dispatchers.IO) {
-                                val values = android.content.ContentValues().apply {
-                                    put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, finalName)
-                                }
-                                context.contentResolver.update(android.net.Uri.parse(video.uri), values, null, null)
-                            }
+                            val intent = android.provider.MediaStore.createWriteRequest(
+                                context.contentResolver, listOf(uri)
+                            )
+                            pendingVideoUri = video.uri
+                            pendingRenameName = finalName
+                            mediaRequestLauncher.launch(
+                                IntentSenderRequest.Builder(intent).build()
+                            )
                         } catch (_: Exception) { }
-                        showRenameDialog = false
+                    } else {
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    val values = android.content.ContentValues().apply {
+                                        put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, finalName)
+                                    }
+                                    context.contentResolver.update(uri, values, null, null)
+                                }
+                                refreshTrigger++
+                            } catch (_: Exception) { }
+                        }
                     }
+                    showRenameDialog = false
                 }) { Text("确定") }
             },
             dismissButton = {
@@ -444,15 +498,29 @@ actual fun VideoScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    scope.launch {
+                    val uri = android.net.Uri.parse(video.uri)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         try {
-                            withContext(Dispatchers.IO) {
-                                context.contentResolver.delete(android.net.Uri.parse(video.uri), null, null)
-                            }
-                            sortedVideos.let { }
+                            val intent = android.provider.MediaStore.createDeleteRequest(
+                                context.contentResolver, listOf(uri)
+                            )
+                            pendingVideoUri = video.uri
+                            pendingRenameName = null
+                            mediaRequestLauncher.launch(
+                                IntentSenderRequest.Builder(intent).build()
+                            )
                         } catch (_: Exception) { }
-                        showDeleteDialog = false
+                    } else {
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.delete(uri, null, null)
+                                }
+                                refreshTrigger++
+                            } catch (_: Exception) { }
+                        }
                     }
+                    showDeleteDialog = false
                 }) { Text("删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
