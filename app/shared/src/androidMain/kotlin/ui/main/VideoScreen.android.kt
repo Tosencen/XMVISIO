@@ -89,9 +89,24 @@ actual fun VideoScreen(
     }
 
     var showQuickSettings by remember { mutableStateOf(false) }
-    var sortBy by rememberSaveable { mutableIntStateOf(1) } // 0=名称, 1=日期, 2=大小, 3=时长
+    var sortBy by rememberSaveable { mutableIntStateOf(1) }
     var sortAscending by rememberSaveable { mutableStateOf(false) }
     var isGridLayout by rememberSaveable { mutableStateOf(true) }
+
+    // 持久化布局设置
+    val prefs = context.getSharedPreferences("video_prefs", android.content.Context.MODE_PRIVATE)
+    LaunchedEffect(Unit) {
+        isGridLayout = prefs.getBoolean("grid_layout", true)
+        sortBy = prefs.getInt("sort_by", 1)
+        sortAscending = prefs.getBoolean("sort_asc", false)
+    }
+    LaunchedEffect(isGridLayout, sortBy, sortAscending) {
+        prefs.edit()
+            .putBoolean("grid_layout", isGridLayout)
+            .putInt("sort_by", sortBy)
+            .putBoolean("sort_asc", sortAscending)
+            .apply()
+    }
 
     // 长按菜单状态
     var selectedVideo by remember { mutableStateOf<VideoInfo?>(null) }

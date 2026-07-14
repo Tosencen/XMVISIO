@@ -86,9 +86,15 @@ actual fun VideoPlayerScreen(
     var totalDuration by remember { mutableLongStateOf(0L) }
     var playbackSpeed by remember { mutableFloatStateOf(prefs.defaultPlaybackSpeed) }
     var loopMode by remember { mutableStateOf(prefs.loopMode) }
+    var isBuffering by remember { mutableStateOf(false) }
 
     LaunchedEffect(player) {
-        snapshotFlow { player.isPlaying }.collect { isPlaying = it }
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+            override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = state == Player.STATE_BUFFERING
+            }
+        })
     }
 
     LaunchedEffect(player) {
@@ -146,17 +152,6 @@ actual fun VideoPlayerScreen(
         }
     }
 
-    // 长按释放检测（onTap 重置 + 超时兜底）
-    LaunchedEffect(isLongPressing) {
-        if (isLongPressing) {
-            delay(100)
-            if (isLongPressing) {
-                isLongPressing = false
-                player.setPlaybackSpeed(playbackSpeed)
-            }
-        }
-    }
-
     // 音量控制
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -210,8 +205,14 @@ actual fun VideoPlayerScreen(
                 .fillMaxSize()
                 .pointerInput(prefs.enableSeekGesture, prefs.enableVolumeGesture, prefs.enableBrightnessGesture, prefs.controlsLocked) {
                     detectTapGestures(
+                        onPress = {
+                            tryAwaitRelease()
+                            if (isLongPressing) {
+                                isLongPressing = false
+                                player.setPlaybackSpeed(playbackSpeed)
+                            }
+                        },
                         onTap = {
-                            isLongPressing = false
                             showControls = !showControls
                         },
                         onDoubleTap = { offset ->
@@ -369,6 +370,20 @@ actual fun VideoPlayerScreen(
             }
         }
 
+        // === 缓冲指示器 ===
+        if (isBuffering) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = Color.White,
+                    strokeWidth = 3.dp
+                )
+            }
+        }
+
         // === 双击指示器 ===
         if (showDoubleTapIndicator) {
             Box(
@@ -398,16 +413,16 @@ actual fun VideoPlayerScreen(
         if (volumeIndicator >= 0f) {
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .width(56.dp)
-                    .align(Alignment.CenterEnd)
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .padding(end = 4.dp),
+                    .fillMaxSize()
+                    .align(Alignment.CenterEnd),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .padding(16.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.VolumeUp,
@@ -444,16 +459,16 @@ actual fun VideoPlayerScreen(
         if (brightnessIndicator >= 0f) {
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .width(56.dp)
-                    .align(Alignment.CenterStart)
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .padding(start = 4.dp),
+                    .fillMaxSize()
+                    .align(Alignment.CenterStart),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .padding(16.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Brightness6,
@@ -503,6 +518,37 @@ actual fun VideoPlayerScreen(
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                     )
+                }
+            }
+        }
+
+        // === 锁定状态：显示解锁按钮 ===
+        if (prefs.controlsLocked && showControls) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = { prefsManager.setControlsLocked(false) },
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "解锁",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Text("轻触解锁", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
