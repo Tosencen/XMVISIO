@@ -122,7 +122,8 @@ fun AudiobookScreenCommon(
             if (showEmptyState) {
                 EmptyState(
                     title = "还没有有声书",
-                    subtitle = "点右上角加号导入本地音频，\n或者从网上下载有声书资源"
+                    subtitle = "点右上角加号导入本地音频，\n或者从网上下载有声书资源",
+                    modifier = Modifier.fillMaxSize()
                 )
             } else {
                 when (layoutMode) {

@@ -583,7 +583,8 @@ internal fun AudiobookScreenImpl(
                     } else if (audioList.isEmpty() && !isSearching) {
                         EmptyState(
                             title = "还没有音频文件",
-                            subtitle = "手机里没找到音频文件"
+                            subtitle = "手机里没找到音频文件",
+                            modifier = Modifier.fillMaxSize()
                         )
                     } else if (filteredAudioList.isEmpty() && searchQuery.isNotBlank()) {
                         // 搜索无结果
