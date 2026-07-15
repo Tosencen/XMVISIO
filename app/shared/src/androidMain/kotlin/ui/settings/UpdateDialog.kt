@@ -179,8 +179,8 @@ fun UpdateDialog(
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Text(
-                                    version.changelog,
+                                MarkdownText(
+                                    markdown = version.changelog,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
