@@ -76,8 +76,10 @@ class AtomicSingleTaskExecutor(
                 ?: Dispatchers.Default
 
         // 2. Create a new job but does not start it
+        val callerJob = currentCoroutineContext()[Job]
+            ?: throw IllegalStateException("SingleTaskExecutor.invoke requires a Job in the current coroutine context")
         val newJob = scope.async(
-            coroutineContext + currentCoroutineContext()[Job]!! + continuationInterceptor,
+            coroutineContext + callerJob + continuationInterceptor,
             start = CoroutineStart.LAZY,
             block = block,
         )

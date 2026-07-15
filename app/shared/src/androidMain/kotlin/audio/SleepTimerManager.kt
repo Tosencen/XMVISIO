@@ -4,6 +4,8 @@ import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,9 @@ class SleepTimerManager private constructor(private val context: Context) {
     
     private var timerJob: Job? = null
     
+    // 统一管理协程，避免每次 setTimer/showToast 都创建新的匿名 CoroutineScope
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    
     /**
      * 设置睡眠定时器
      */
@@ -41,7 +46,7 @@ class SleepTimerManager private constructor(private val context: Context) {
         timerJob?.cancel()
         
         // 启动新的定时器
-        timerJob = CoroutineScope(Dispatchers.Main).launch {
+        timerJob = scope.launch {
             while (System.currentTimeMillis() < endTimeMillis) {
                 val remaining = (endTimeMillis - System.currentTimeMillis()).milliseconds
                 _remainingTime.value = remaining
@@ -109,7 +114,7 @@ class SleepTimerManager private constructor(private val context: Context) {
      * 显示 Toast 提示
      */
     private fun showToast(context: Context, message: String) {
-        CoroutineScope(Dispatchers.Main).launch {
+        scope.launch {
             android.widget.Toast.makeText(
                 context,
                 message,

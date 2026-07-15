@@ -189,5 +189,6 @@ data class NewVersion(
     val changelog: String,
     val downloadUrl: String,  // 优先使用的URL（jsDelivr CDN）
     val publishedAt: String,
-    val fallbackUrl: String? = null  // 回退URL（GitHub原始URL）
+    val fallbackUrl: String? = null,  // 回退URL（GitHub原始URL）
+    val sha256: String? = null  // SHA-256 校验和，用于下载后完整性校验
 )

@@ -3,8 +3,11 @@ package com.xmvisio.app.audio
 import android.content.Context
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +19,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * 音频播放器（封装MediaPlayer）
  */
 class AudioPlayer(private val context: Context) {
+    
+    companion object {
+        private const val TAG = "AudioPlayer"
+    }
     
     private var mediaPlayer: MediaPlayer? = null
     private var currentUri: Uri? = null
@@ -38,6 +45,9 @@ class AudioPlayer(private val context: Context) {
     private val positionManager = PlaybackPositionManager(context)
     private val speedManager = PlaybackSpeedManager(context)
     
+    // 统一管理所有协程，release() 时取消，避免协程泄漏
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    
     // 音频焦点管理器
     private val audioFocusManager = AudioFocusManager(
         context = context,
@@ -55,7 +65,7 @@ class AudioPlayer(private val context: Context) {
         audioFocusManager.register()
         
         // 初始化时加载保存的播放速度
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch(Dispatchers.IO) {
             speedManager.playbackSpeed.collect { speed ->
                 _playbackSpeed.value = speed
                 // 如果播放器已经准备好，应用速度
@@ -64,7 +74,7 @@ class AudioPlayer(private val context: Context) {
                         try {
                             player.playbackParams = player.playbackParams.setSpeed(speed)
                         } catch (e: Exception) {
-                            println("应用播放速度失败: ${e.message}")
+                            Log.w(TAG, "应用播放速度失败: ${e.message}")
                         }
                     }
                 }
@@ -86,10 +96,10 @@ class AudioPlayer(private val context: Context) {
                 val actuallyPlaying = player.isPlaying
                 if (_isPlaying.value != actuallyPlaying) {
                     _isPlaying.value = actuallyPlaying
-                    println("同步播放状态: isPlaying=$actuallyPlaying")
+                    Log.d(TAG, "同步播放状态: isPlaying=$actuallyPlaying")
                 }
             } catch (e: Exception) {
-                println("同步播放状态失败: ${e.message}")
+                Log.w(TAG, "同步播放状态失败: ${e.message}")
             }
         }
     }
@@ -128,12 +138,12 @@ class AudioPlayer(private val context: Context) {
                         try {
                             mp.playbackParams = mp.playbackParams.setSpeed(_playbackSpeed.value)
                         } catch (e: Exception) {
-                            println("应用播放速度失败: ${e.message}")
+                            Log.w(TAG, "应用播放速度失败: ${e.message}")
                         }
                     }
                     
                     // 恢复上次播放位置
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    scope.launch {
                         val savedPosition = positionManager.getPosition(audioId)
                         if (savedPosition > Duration.ZERO && savedPosition < mp.duration.milliseconds) {
                             mp.seekTo(savedPosition.inWholeMilliseconds.toInt())
@@ -147,7 +157,7 @@ class AudioPlayer(private val context: Context) {
                     _currentPosition.value = Duration.ZERO
                     // 播放完成后清除保存的位置
                     _currentAudioId.value?.let { id ->
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        scope.launch(Dispatchers.IO) {
                             positionManager.clearPosition(id)
                         }
                     }
@@ -185,7 +195,7 @@ class AudioPlayer(private val context: Context) {
     fun play() {
         // 请求音频焦点
         if (!audioFocusManager.requestAudioFocus()) {
-            println("无法获取音频焦点")
+            Log.w(TAG, "无法获取音频焦点")
             return
         }
         
@@ -197,7 +207,7 @@ class AudioPlayer(private val context: Context) {
                 // 无论如何都更新状态，确保UI同步
                 _isPlaying.value = true
             } catch (e: Exception) {
-                println("播放失败: ${e.message}")
+                Log.w(TAG, "播放失败: ${e.message}")
                 _isPlaying.value = false
             }
         }
@@ -215,7 +225,7 @@ class AudioPlayer(private val context: Context) {
                 // 无论如何都更新状态，确保UI同步
                 _isPlaying.value = false
             } catch (e: Exception) {
-                println("暂停失败: ${e.message}")
+                Log.w(TAG, "暂停失败: ${e.message}")
             }
         }
         
@@ -241,7 +251,7 @@ class AudioPlayer(private val context: Context) {
                     }
                 }
             } catch (e: Exception) {
-                println("切换播放状态失败: ${e.message}")
+                Log.w(TAG, "切换播放状态失败: ${e.message}")
             }
         }
     }
@@ -299,7 +309,7 @@ class AudioPlayer(private val context: Context) {
                 
                 // 每次更新位置时保存到本地（每秒保存一次）
                 _currentAudioId.value?.let { id ->
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    scope.launch(Dispatchers.IO) {
                         positionManager.savePosition(id, _currentPosition.value)
                     }
                 }
@@ -318,12 +328,12 @@ class AudioPlayer(private val context: Context) {
                     _playbackSpeed.value = speed
                     
                     // 保存到全局设置
-                    CoroutineScope(Dispatchers.IO).launch {
+                    scope.launch(Dispatchers.IO) {
                         speedManager.saveSpeed(speed)
                     }
                 } catch (e: Exception) {
                     // 某些设备可能不支持
-                    println("设置播放速度失败: ${e.message}")
+                    Log.w(TAG, "设置播放速度失败: ${e.message}")
                 }
             }
         }
@@ -368,7 +378,7 @@ class AudioPlayer(private val context: Context) {
      * 显示 Toast 提示
      */
     private fun showToast(message: String) {
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        scope.launch {
             android.widget.Toast.makeText(
                 context,
                 message,
@@ -393,7 +403,7 @@ class AudioPlayer(private val context: Context) {
     private fun releaseMediaPlayerOnly() {
         // 保存当前位置
         _currentAudioId.value?.let { id ->
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            scope.launch(Dispatchers.IO) {
                 positionManager.savePosition(id, _currentPosition.value)
             }
         }
@@ -415,10 +425,13 @@ class AudioPlayer(private val context: Context) {
     fun release() {
         // 保存当前位置
         _currentAudioId.value?.let { id ->
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            scope.launch(Dispatchers.IO) {
                 positionManager.savePosition(id, _currentPosition.value)
             }
         }
+        
+        // 取消所有协程
+        scope.cancel()
         
         // 注销音频焦点和蓝牙耳机监听器
         audioFocusManager.unregister()

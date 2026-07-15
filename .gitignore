@@ -53,3 +53,5 @@ Pods/
 
 # Project data
 data/
+androidx/
+.codebuddy/

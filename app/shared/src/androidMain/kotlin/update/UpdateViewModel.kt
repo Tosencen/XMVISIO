@@ -5,6 +5,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -127,9 +128,9 @@ class UpdateViewModel(private val context: Context) {
                 }
             }
             
-            // 下载文件
+            // 下载文件（传入 SHA-256 校验和用于完整性校验）
             val downloadedFile = withContext(Dispatchers.IO) {
-                fileDownloader.download(version.downloadUrl, apkFile, version.fallbackUrl)
+                fileDownloader.download(version.downloadUrl, apkFile, version.fallbackUrl, version.sha256)
             }
             
             progressJob.cancel()
@@ -177,6 +178,14 @@ class UpdateViewModel(private val context: Context) {
      */
     fun reset() {
         _updateState.value = UpdateState.Idle
+    }
+    
+    /**
+     * 释放资源，取消所有协程（在 Activity/Fragment 销毁时必须调用）
+     */
+    fun close() {
+        scope.cancel()
+        fileDownloader.cancel()
     }
     
     /**

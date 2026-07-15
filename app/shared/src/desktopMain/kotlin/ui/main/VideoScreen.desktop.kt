@@ -10,7 +10,7 @@ import com.xmvisio.app.data.VideoInfo
 
 @Composable
 actual fun VideoScreen(
-    onNavigateToPlayer: (VideoInfo) -> Unit,
+    onNavigateToPlayer: (VideoInfo, List<VideoInfo>) -> Unit,
     onNavigateToSettings: () -> Unit,
     updateAvailable: Boolean,
     onUpdateCheck: () -> Unit,

@@ -7,15 +7,17 @@ import android.content.Context
  * 确保整个应用只有一个播放器实例，避免多个音频叠加播放
  */
 object GlobalAudioPlayer {
+    @Volatile
     private var instance: AudioPlayer? = null
     
+    @Synchronized
     fun getInstance(context: Context): AudioPlayer {
-        if (instance == null) {
-            instance = AudioPlayer(context.applicationContext)
+        return instance ?: AudioPlayer(context.applicationContext).also {
+            instance = it
         }
-        return instance!!
     }
     
+    @Synchronized
     fun release() {
         instance?.release()
         instance = null

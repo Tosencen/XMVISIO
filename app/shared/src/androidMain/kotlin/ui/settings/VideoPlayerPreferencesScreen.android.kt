@@ -29,6 +29,8 @@ actual fun VideoPlayerPreferencesScreen(
     val context = LocalContext.current
     val manager = remember { VideoPlayerPreferencesManager.getInstance(context) }
     val prefs by manager.preferences.collectAsState()
+    val subtitleManager = remember { SubtitlePreferencesManager.getInstance(context) }
+    val subtitlePrefs by subtitleManager.preferences.collectAsState()
 
     // 弹窗状态
     var showSpeedDialog by remember { mutableStateOf(false) }
@@ -203,7 +205,23 @@ actual fun VideoPlayerPreferencesScreen(
                     value = prefs.seekIncrement.toFloat(),
                     valueRange = 1f..60f,
                     onValueChange = { manager.setSeekIncrement(it.toInt()) },
-                    valueText = "${prefs.seekIncrement} 秒",
+                    valueText = "${prefs.seekIncrement} 秒"
+                )
+
+                VpSettingsSwitchItem(
+                    icon = Icons.Default.ZoomIn,
+                    title = "双指缩放手势",
+                    subtitle = "双指捏合缩放视频画面",
+                    checked = prefs.enableZoomGesture,
+                    onCheckedChange = { manager.setEnableZoomGesture(it) }
+                )
+
+                VpSettingsSwitchItem(
+                    icon = Icons.Default.OpenWith,
+                    title = "平移手势",
+                    subtitle = "缩放后拖动平移画面",
+                    checked = prefs.enablePanGesture,
+                    onCheckedChange = { manager.setEnablePanGesture(it) },
                     isLast = true
                 )
             }
@@ -229,6 +247,7 @@ actual fun VideoPlayerPreferencesScreen(
                         ScreenOrientation.AUTOMATIC -> "自动"
                         ScreenOrientation.LANDSCAPE -> "横屏"
                         ScreenOrientation.LANDSCAPE_REVERSE -> "反向横屏"
+                        ScreenOrientation.LANDSCAPE_AUTO -> "横屏（传感器）"
                         ScreenOrientation.PORTRAIT -> "竖屏"
                         ScreenOrientation.VIDEO_ORIENTATION -> "跟随视频"
                     },
@@ -244,7 +263,54 @@ actual fun VideoPlayerPreferencesScreen(
                         VideoContentScale.CROP -> "裁剪"
                         VideoContentScale.HUNDRED_PERCENT -> "100%"
                     },
-                    onClick = { showScaleDialog = true },
+                    onClick = { showScaleDialog = true }
+                )
+            }
+
+            // === 字幕 ===
+            SectionTitle("字幕")
+
+            SettingsCardGroup {
+                VpSettingsSwitchItem(
+                    icon = Icons.Default.ClosedCaption,
+                    title = "使用系统字幕样式",
+                    subtitle = "跟随系统无障碍字幕设置",
+                    checked = subtitlePrefs.useSystemCaptionStyle,
+                    onCheckedChange = { subtitleManager.setUseSystemCaptionStyle(it) },
+                    isFirst = true
+                )
+
+                VpSettingsSliderItem(
+                    icon = Icons.Default.FormatSize,
+                    title = "字幕大小",
+                    value = subtitlePrefs.textSize.toFloat(),
+                    valueRange = 10f..60f,
+                    onValueChange = { subtitleManager.setTextSize(it.toInt()) },
+                    valueText = "${subtitlePrefs.textSize} sp"
+                )
+
+                VpSettingsSwitchItem(
+                    icon = Icons.Default.FormatBold,
+                    title = "字幕加粗",
+                    subtitle = "以粗体显示字幕文字",
+                    checked = subtitlePrefs.textBold,
+                    onCheckedChange = { subtitleManager.setTextBold(it) }
+                )
+
+                VpSettingsSwitchItem(
+                    icon = Icons.Default.Highlight,
+                    title = "字幕背景",
+                    subtitle = "为字幕添加黑色背景",
+                    checked = subtitlePrefs.background,
+                    onCheckedChange = { subtitleManager.setBackground(it) }
+                )
+
+                VpSettingsSwitchItem(
+                    icon = Icons.Default.AutoFixHigh,
+                    title = "应用内嵌样式",
+                    subtitle = "使用字幕文件自带的样式",
+                    checked = subtitlePrefs.applyEmbeddedStyles,
+                    onCheckedChange = { subtitleManager.setApplyEmbeddedStyles(it) },
                     isLast = true
                 )
             }
@@ -313,6 +379,7 @@ actual fun VideoPlayerPreferencesScreen(
                     ScreenOrientation.AUTOMATIC -> "自动"
                     ScreenOrientation.LANDSCAPE -> "横屏"
                     ScreenOrientation.LANDSCAPE_REVERSE -> "反向横屏"
+                    ScreenOrientation.LANDSCAPE_AUTO -> "横屏（传感器）"
                     ScreenOrientation.PORTRAIT -> "竖屏"
                     ScreenOrientation.VIDEO_ORIENTATION -> "跟随视频"
                 }

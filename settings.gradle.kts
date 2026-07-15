@@ -29,7 +29,7 @@ plugins {
 
 // 应用模块
 include(":app:shared")
-include(":app:shared:ui-foundation")
+// include(":app:shared:ui-foundation") // OpenAni 遗留模块，暂无依赖
 include(":app:android")
 include(":app:desktop")
 

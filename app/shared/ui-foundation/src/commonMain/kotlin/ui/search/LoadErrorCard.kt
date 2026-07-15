@@ -40,8 +40,6 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import me.him188.ani.app.domain.foundation.LoadError
 import me.him188.ani.app.navigation.LocalNavigator
@@ -193,11 +191,8 @@ fun LoadErrorCard(
                                                 e?.stackTraceToString() ?: "null",
                                             )
                                         }
-                                        @OptIn(DelicateCoroutinesApi::class)
-                                        GlobalScope.launch {
-                                            logger<LoadError>().error(e) {
-                                                "<User clicked copy, I'm just printing the stack trace>"
-                                            }
+                                        logger<LoadError>().error(e) {
+                                            "<User clicked copy, I'm just printing the stack trace>"
                                         }
                                         toaster.toast("已复制，请反馈到 GitHub issues 或群里")
                                     },

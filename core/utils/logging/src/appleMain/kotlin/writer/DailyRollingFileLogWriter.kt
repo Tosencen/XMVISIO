@@ -78,6 +78,7 @@ class DailyRollingFileLogWriter(
         currentFileHandle?.let {
             it.writeString(text)
             it.writeString("\n")
+            it.flush()
         }
     }
 

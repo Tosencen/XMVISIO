@@ -1,3 +1,4 @@
+/* ===== 下载功能已暂时禁用（解除注释以恢复） =====
 package com.xmvisio.app.ui.main
 
 import android.Manifest
@@ -18,27 +19,16 @@ actual fun DownloadsScreen(
     modifier: Modifier
 ) {
     val context = LocalContext.current
-    
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        android.util.Log.d("DownloadsScreen", "Storage permission granted: $isGranted")
-    }
-    
+    ) { isGranted -> android.util.Log.d("DownloadsScreen", "Storage permission granted: $isGranted") }
     val downloadManager = remember {
         SealDownloadManager.getInstance(context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                 permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            } else {
-                android.util.Log.d("DownloadsScreen", "Android 13+, no permission needed")
             }
         }
     }
-    
-    SealDownloadScreen(
-        downloadManager = downloadManager,
-        updateAvailable = updateAvailable,
-        onUpdateCheck = onUpdateCheck,
-        modifier = modifier
-    )
+    SealDownloadScreen(downloadManager = downloadManager, updateAvailable = updateAvailable, onUpdateCheck = onUpdateCheck, modifier = modifier)
 }
+*/

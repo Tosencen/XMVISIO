@@ -1,30 +1,23 @@
+/* ===== 下载功能已暂时禁用（解除注释以恢复） =====
 package com.xmvisio.app.download
 
 import kotlinx.coroutines.flow.StateFlow
 
 interface IDownloadManager {
     val downloads: StateFlow<List<DownloadTask>>
-    
     suspend fun startDownload(url: String, downloadType: DownloadType = DownloadType.AUDIO): Result<String>
     fun cancelDownload(taskId: String)
-    fun removeDownload(taskId: String)  // 移除单个下载记录
-    suspend fun retryDownload(taskId: String)  // 重试失败的下载
+    fun removeDownload(taskId: String)
+    suspend fun retryDownload(taskId: String)
     fun hasStoragePermission(): Boolean
     fun requestStoragePermission()
-    
-    // 清理下载记录
-    fun clearCompletedDownloads()  // 清理已完成的下载记录
-    fun clearAllDownloads()  // 清理所有下载记录（不包括正在下载的）
-    
-    // yt-dlp 更新相关
+    fun clearCompletedDownloads()
+    fun clearAllDownloads()
     suspend fun updateYtDlp(): YtDlpUpdateStatus
     fun getYtDlpVersion(): String?
 }
 
 enum class YtDlpUpdateStatus {
-    IDLE,
-    UPDATING,
-    DONE,
-    ALREADY_UP_TO_DATE,
-    ERROR
+    IDLE, UPDATING, DONE, ALREADY_UP_TO_DATE, ERROR
 }
+*/

@@ -103,33 +103,44 @@ fun ThemeSettingsPage(
             SettingsGroupPlain(
                 title = "主题设置"
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                val supportDynamic = com.xmvisio.app.ui.theme.isPlatformSupportDynamicTheme()
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(24.dp),
+                    tonalElevation = 0.dp
                 ) {
-                    // 动态颜色（样式与纯黑背景一致；置于其上方）
-                    val supportDynamic = com.xmvisio.app.ui.theme.isPlatformSupportDynamicTheme()
-                    SettingsSwitchItem(
-                        title = "动态颜色",
-                        description = if (supportDynamic) {
-                            "从壁纸取色，跟随系统主题色（Android 12+ 支持）"
-                        } else {
-                            "当前平台不支持动态颜色"
-                        },
-                        checked = themeSettings.useDynamicTheme,
-                        onCheckedChange = { checked ->
-                            onThemeChange(themeSettings.copy(useDynamicTheme = checked))
-                        },
-                        enabled = supportDynamic
-                    )
-                    
-                    SettingsSwitchItem(
-                        title = "纯黑背景",
-                        description = "深色模式下使用纯黑背景",
-                        checked = themeSettings.useBlackBackground,
-                        onCheckedChange = { checked ->
-                            onThemeChange(themeSettings.copy(useBlackBackground = checked))
-                        }
-                    )
+                    Column {
+                        SettingsSwitchItemContent(
+                            title = "动态颜色",
+                            description = if (supportDynamic) {
+                                "从壁纸取色，跟随系统主题色（Android 12+ 支持）"
+                            } else {
+                                "当前平台不支持动态颜色"
+                            },
+                            checked = themeSettings.useDynamicTheme,
+                            onCheckedChange = { checked ->
+                                onThemeChange(themeSettings.copy(useDynamicTheme = checked))
+                            },
+                            enabled = supportDynamic,
+                            isFirst = true,
+                            isLast = false
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+                        SettingsSwitchItemContent(
+                            title = "纯黑背景",
+                            description = "深色模式下使用纯黑背景",
+                            checked = themeSettings.useBlackBackground,
+                            onCheckedChange = { checked ->
+                                onThemeChange(themeSettings.copy(useBlackBackground = checked))
+                            },
+                            isFirst = false,
+                            isLast = true
+                        )
+                    }
                 }
             }
             
@@ -189,23 +200,22 @@ private fun SettingsGroupPlain(
 }
 
 /**
- * 设置开关项
+ * 设置开关项内容（无外层 Surface，用于分组卡片内）
  * 注意：使用 InteractionSource 防止 Switch 点击时触发 ListItem 的 clickable
  */
 @Composable
-private fun SettingsSwitchItem(
+private fun SettingsSwitchItemContent(
     title: String,
     description: String?,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isFirst: Boolean = false,
+    isLast: Boolean = false
 ) {
-    // 使用独立的 InteractionSource，防止事件冲突
     val switchInteractionSource = remember { MutableInteractionSource() }
     val listItemInteractionSource = remember { MutableInteractionSource() }
-    
-    // 使用状态防止重复触发，特别是在首次渲染时
     var isProcessing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     
@@ -213,7 +223,6 @@ private fun SettingsSwitchItem(
         if (!isProcessing && enabled) {
             isProcessing = true
             onCheckedChange(newValue)
-            // 短暂延迟后重置，确保动画完成
             coroutineScope.launch {
                 delay(200)
                 isProcessing = false
@@ -221,52 +230,49 @@ private fun SettingsSwitchItem(
         }
     }
     
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        ListItem(
-            headlineContent = { 
+    ListItem(
+        headlineContent = { 
+            Text(
+                text = title,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                }
+            )
+        },
+        supportingContent = description?.let { 
+            { 
                 Text(
-                    text = title,
+                    text = it,
                     color = if (enabled) {
-                        MaterialTheme.colorScheme.onSurface
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     }
                 )
-            },
-            supportingContent = description?.let { 
-                { 
-                    Text(
-                        text = it,
-                        color = if (enabled) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                        }
-                    )
-                } 
-            },
-            trailingContent = {
-                Switch(
-                    checked = checked,
-                    onCheckedChange = handleChange,
-                    enabled = enabled && !isProcessing,
-                    interactionSource = switchInteractionSource
-                )
-            },
-            modifier = Modifier.clickable(
+            } 
+        },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = handleChange,
+                enabled = enabled && !isProcessing,
+                interactionSource = switchInteractionSource
+            )
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
                 enabled = enabled && !isProcessing,
                 interactionSource = listItemInteractionSource,
                 onClick = { handleChange(!checked) }
-            ),
-            colors = ListItemDefaults.colors(
-                containerColor = Color.Transparent
             )
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        colors = ListItemDefaults.colors(
+            containerColor = Color.Transparent
         )
-    }
+    )
 }
 
 /**

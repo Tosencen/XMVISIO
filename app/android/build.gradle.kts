@@ -27,6 +27,7 @@ android {
         }
     }
     
+    // ===== 下载功能已暂时禁用 =====
     // 确保 youtubedl-android 的 native 库被正确打包
     // 不使用 useLegacyPackaging，让 AGP 新打包管道自动处理 16KB 对齐
     packaging {
@@ -107,6 +108,7 @@ dependencies {
     // Lottie 动画
     implementation("com.airbnb.android:lottie-compose:6.1.0")
     
+    // ===== 下载功能已暂时禁用 =====
     // YoutubeDL Android (Seal's fork) - 视频/音频下载
-    implementation(libs.youtubedl.android.library)
+    // implementation(libs.youtubedl.android.library)
 }

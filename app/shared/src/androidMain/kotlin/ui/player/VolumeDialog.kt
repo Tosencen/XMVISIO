@@ -60,27 +60,31 @@ fun VolumeDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 音量图标
-                Icon(
-                    imageVector = when {
-                        currentVolume == 0 -> Icons.Default.VolumeMute
-                        currentVolume < safeMaxVolume / 2 -> Icons.Default.VolumeDown
-                        else -> Icons.Default.VolumeUp
-                    },
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-
-                // 音量百分比显示 - 实时更新
-                Text(
-                    text = "$volumePercentage%",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                // 音量图标 + 百分比（横向排列）
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = when {
+                            currentVolume == 0 -> Icons.Default.VolumeMute
+                            currentVolume < safeMaxVolume / 2 -> Icons.Default.VolumeDown
+                            else -> Icons.Default.VolumeUp
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "$volumePercentage%",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
                 // 音量滑块
                 Slider(

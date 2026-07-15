@@ -28,7 +28,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "XMVISIO"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.7"
             description = "XMVISIO - 多功能媒体播放应用"
             vendor = "XMVISIO"
             

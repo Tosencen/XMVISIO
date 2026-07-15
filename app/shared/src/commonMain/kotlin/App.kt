@@ -1,20 +1,15 @@
 package com.xmvisio.app
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Download
+// import androidx.compose.material.icons.filled.Download  // 下载功能已禁用
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material.icons.outlined.AudioFile
-import androidx.compose.material.icons.outlined.Download
+// import androidx.compose.material.icons.outlined.Download  // 下载功能已禁用
 import androidx.compose.material.icons.outlined.VideoFile
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import com.xmvisio.app.ui.adaptive.AniNavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -179,9 +174,9 @@ fun MainScreen(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             navigationContainerColor = MaterialTheme.colorScheme.surfaceContainer
         ) {
-            Box(Modifier.fillMaxSize()) {
-                when (selectedTab) {
-                    MainTab.AUDIOBOOK -> AudiobookScreen(
+            when (selectedTab) {
+                MainTab.AUDIOBOOK -> {
+                    AudiobookScreen(
                         onNavigateToPlayer = { audio ->
                             audioToPlay = audio
                             showPlayer = true
@@ -189,11 +184,9 @@ fun MainScreen(
                         updateAvailable = updateAvailable,
                         onUpdateCheck = onUpdateCheck
                     )
-                    /*MainTab.DOWNLOADS -> DownloadsScreen(
-                        updateAvailable = updateAvailable,
-                        onUpdateCheck = onUpdateCheck
-                    )*/
-                    MainTab.VIDEO -> VideoScreen(
+                }
+                MainTab.VIDEO -> {
+                    VideoScreen(
                         onNavigateToPlayer = { video, videos ->
                             videoToPlay = video
                             videoList = videos

@@ -1,9 +1,12 @@
 package com.xmvisio.app.audio
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,9 +38,12 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
     
     private var notificationUpdateJob: Job? = null
     
+    // 统一管理所有协程，release() 时取消，避免协程泄漏
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    
     init {
         // 监听播放状态变化，更新通知
-        CoroutineScope(Dispatchers.Main).launch {
+        scope.launch {
             audioPlayer.isPlaying.collect { isPlaying ->
                 updateNotification()
                 
@@ -51,13 +57,13 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
         }
         
         // 监听睡眠定时器变化，更新通知
-        CoroutineScope(Dispatchers.Main).launch {
+        scope.launch {
             sleepTimerManager.remainingTime.collect {
                 updateNotification()
             }
         }
         
-        CoroutineScope(Dispatchers.Main).launch {
+        scope.launch {
             sleepTimerManager.isSetToAudioEnd.collect {
                 updateNotification()
             }
@@ -99,12 +105,12 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
             val previousAudio = list[currentIndex - 1]
             
             // 记录最近播放
-            CoroutineScope(Dispatchers.Main).launch {
+            scope.launch {
                 recentPlayManager.recordRecentPlay(previousAudio.id, previousAudio.title)
             }
             
             // 准备并播放
-            CoroutineScope(Dispatchers.Main).launch {
+            scope.launch {
                 audioPlayer.prepare(
                     uri = previousAudio.uri,
                     audioId = previousAudio.id,
@@ -133,12 +139,12 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
             val nextAudio = list[currentIndex + 1]
             
             // 记录最近播放
-            CoroutineScope(Dispatchers.Main).launch {
+            scope.launch {
                 recentPlayManager.recordRecentPlay(nextAudio.id, nextAudio.title)
             }
             
             // 准备并播放
-            CoroutineScope(Dispatchers.Main).launch {
+            scope.launch {
                 audioPlayer.prepare(
                     uri = nextAudio.uri,
                     audioId = nextAudio.id,
@@ -160,7 +166,7 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
      */
     private fun updateNotification() {
         val audio = _currentAudio.value ?: run {
-            println("GlobalAudioPlayerController: updateNotification() - currentAudio is null, skipping")
+            Log.d(TAG, "updateNotification() - currentAudio is null, skipping")
             return
         }
         
@@ -177,7 +183,7 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
         val currentPosition = audioPlayer.currentPosition.value
         val duration = audioPlayer.duration.value
         
-        println("GlobalAudioPlayerController: updateNotification() - title=\"${audio.title}\", isPlaying=$isPlaying, position=${currentPosition.inWholeSeconds}s, duration=${duration.inWholeSeconds}s")
+        Log.d(TAG, "updateNotification() - title=\"${audio.title}\", isPlaying=$isPlaying, position=${currentPosition.inWholeSeconds}s, duration=${duration.inWholeSeconds}s")
         
         notificationManager.showNotification(
             title = audio.title,
@@ -198,7 +204,7 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
      */
     private fun startNotificationUpdates() {
         stopNotificationUpdates()
-        notificationUpdateJob = CoroutineScope(Dispatchers.Main).launch {
+        notificationUpdateJob = scope.launch {
             while (true) {
                 delay(1000) // 每秒更新一次
                 updateNotification()
@@ -227,10 +233,13 @@ class GlobalAudioPlayerController private constructor(private val context: Conte
      */
     fun release() {
         stopNotificationUpdates()
+        scope.cancel()
         notificationManager.release()
     }
     
     companion object {
+        private const val TAG = "GlobalAudioPlayerController"
+        
         @Volatile
         private var instance: GlobalAudioPlayerController? = null
         

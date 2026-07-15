@@ -45,7 +45,7 @@ val Project.enableAnitorrent
     get() = (getPropertyOrNull("ani.enable.anitorrent") ?: "false").toBooleanStrict()
 
 val Project.enableIos
-    get() = getPropertyOrNull("ani.enable.ios")?.toBooleanStrict() ?: true
+    get() = getPropertyOrNull("ani.enable.ios")?.toBooleanStrict() ?: false
 
 val Project.enableFirebase
     get() = getPropertyOrNull("ani.enable.firebase")?.toBooleanStrict() ?: false

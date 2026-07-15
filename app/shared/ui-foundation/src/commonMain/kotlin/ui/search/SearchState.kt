@@ -7,6 +7,8 @@
  * https://github.com/open-ani/ani/blob/main/LICENSE
  */
 
+@file:OptIn(DelicateCoroutinesApi::class)
+
 package me.him188.ani.app.ui.search
 
 import androidx.compose.runtime.Composable

@@ -31,10 +31,10 @@ class MediaNotificationReceiver : BroadcastReceiver() {
                 controller.playNext()
             }
             MediaNotificationManager.ACTION_STOP -> {
-                // 停止播放并关闭通知
+                // 停止播放并关闭通知，复用全局控制器而非新建 MediaNotificationManager
                 audioPlayer.pause()
-                val notificationManager = MediaNotificationManager(context)
-                notificationManager.cancelNotification()
+                val controller = GlobalAudioPlayerController.getInstance(context)
+                controller.cancelNotification()
             }
         }
     }

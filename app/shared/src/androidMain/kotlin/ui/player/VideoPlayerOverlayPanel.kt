@@ -7,6 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import com.xmvisio.app.data.VideoInfo
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,10 +23,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.C
+import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import com.xmvisio.app.data.VideoContentScale
 
 enum class OverlayPanelType {
-    NONE, AUDIO_TRACK, SUBTITLE, PLAYBACK_SPEED, VIDEO_SCALE
+    NONE, AUDIO_TRACK, SUBTITLE, PLAYBACK_SPEED, VIDEO_SCALE, PLAYLIST
 }
 
 @Composable
@@ -56,50 +64,148 @@ fun VideoPlayerOverlayPanel(
     }
 }
 
+// === 音轨面板（真实轨道） ===
 @Composable
 fun AudioTrackPanel(
-    currentTrack: String,
-    onTrackSelected: (String) -> Unit,
+    player: Player,
+    selectedAudioTrackIndex: Int,
+    onTrackSelected: (Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val tracks = listOf("默认", "音轨 1", "音轨 2", "关闭")
+    val tracksState = rememberAudioTracks(player)
 
     Column(modifier = Modifier.fillMaxSize()) {
         PanelHeader(title = "音频轨道", onBack = onBack)
         Spacer(modifier = Modifier.height(8.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(tracks) { track ->
+            // "关闭" 选项
+            item {
                 PanelRadioItem(
-                    title = track,
-                    selected = track == currentTrack,
-                    onClick = { onTrackSelected(track) }
+                    title = "关闭",
+                    selected = selectedAudioTrackIndex == -1,
+                    onClick = { onTrackSelected(-1) }
+                )
+            }
+            items(tracksState.size) { index ->
+                val info = tracksState[index]
+                PanelRadioItem(
+                    title = info.label,
+                    selected = index == selectedAudioTrackIndex,
+                    onClick = { onTrackSelected(index) }
                 )
             }
         }
     }
 }
 
+// === 字幕面板（真实轨道） ===
 @Composable
 fun SubtitlePanel(
-    currentTrack: String,
-    onTrackSelected: (String) -> Unit,
+    player: Player,
+    selectedSubtitleIndex: Int,
+    onTrackSelected: (Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val tracks = listOf("关闭", "字幕 1", "字幕 2", "外部字幕...")
+    val tracksState = rememberTextTracks(player)
 
     Column(modifier = Modifier.fillMaxSize()) {
         PanelHeader(title = "字幕", onBack = onBack)
         Spacer(modifier = Modifier.height(8.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(tracks) { track ->
+            // "关闭" 选项
+            item {
                 PanelRadioItem(
-                    title = track,
-                    selected = track == currentTrack,
-                    onClick = { onTrackSelected(track) }
+                    title = "关闭",
+                    selected = selectedSubtitleIndex == -1,
+                    onClick = { onTrackSelected(-1) }
+                )
+            }
+            items(tracksState.size) { index ->
+                val info = tracksState[index]
+                PanelRadioItem(
+                    title = info.label,
+                    selected = index == selectedSubtitleIndex,
+                    onClick = { onTrackSelected(index) }
                 )
             }
         }
     }
+}
+
+// === 轨道状态 ===
+
+data class TrackInfo(val label: String, val trackGroupIndex: Int, val trackIndex: Int)
+
+@Composable
+fun rememberAudioTracks(player: Player): List<TrackInfo> {
+    var tracks by remember { mutableStateOf(extractAudioTracks(player)) }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onTracksChanged(trackGroups: Tracks) {
+                tracks = extractAudioTracksFromTracks(trackGroups)
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    return tracks
+}
+
+@Composable
+fun rememberTextTracks(player: Player): List<TrackInfo> {
+    var tracks by remember { mutableStateOf(extractTextTracks(player)) }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onTracksChanged(trackGroups: Tracks) {
+                tracks = extractTextTracksFromTracks(trackGroups)
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    return tracks
+}
+
+private fun extractAudioTracks(player: Player): List<TrackInfo> =
+    extractAudioTracksFromTracks(player.currentTracks)
+
+private fun extractTextTracks(player: Player): List<TrackInfo> =
+    extractTextTracksFromTracks(player.currentTracks)
+
+private fun extractAudioTracksFromTracks(tracks: Tracks): List<TrackInfo> {
+    val result = mutableListOf<TrackInfo>()
+    for (groupIndex in tracks.groups.indices) {
+        val group = tracks.groups[groupIndex]
+        if (group.type == C.TRACK_TYPE_AUDIO && group.isSupported) {
+            for (trackIndex in 0 until group.length) {
+                val format = group.getTrackFormat(trackIndex)
+                val lang = format.language?.let { "[${it.uppercase()}] " } ?: ""
+                val label = format.label ?: "音轨 ${result.size + 1}"
+                result.add(TrackInfo(label = "$lang$label", trackGroupIndex = groupIndex, trackIndex = trackIndex))
+            }
+        }
+    }
+    return result
+}
+
+private fun extractTextTracksFromTracks(tracks: Tracks): List<TrackInfo> {
+    val result = mutableListOf<TrackInfo>()
+    for (groupIndex in tracks.groups.indices) {
+        val group = tracks.groups[groupIndex]
+        if (group.type == C.TRACK_TYPE_TEXT && group.isSupported) {
+            for (trackIndex in 0 until group.length) {
+                val format = group.getTrackFormat(trackIndex)
+                val lang = format.language?.let { "[${it.uppercase()}] " } ?: ""
+                val label = format.label ?: "字幕 ${result.size + 1}"
+                result.add(TrackInfo(label = "$lang$label", trackGroupIndex = groupIndex, trackIndex = trackIndex))
+            }
+        }
+    }
+    return result
 }
 
 @Composable
@@ -153,6 +259,54 @@ fun VideoScalePanel(
     }
 }
 
+@Composable
+fun PlaylistPanel(
+    videos: List<VideoInfo>,
+    currentIndex: Int,
+    onVideoSelected: (Int) -> Unit,
+    onBack: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        PanelHeader(title = "播放列表", onBack = onBack)
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            itemsIndexed(videos) { index, video ->
+                val isCurrent = index == currentIndex
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            if (!isCurrent) onVideoSelected(index)
+                        },
+                    color = if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color.Transparent
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = video.name,
+                            color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = video.formattedDuration,
+                            color = if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 // === 辅助组件 ===
 
 @Composable
@@ -188,7 +342,7 @@ private fun PanelRadioItem(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick),
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else Color.Transparent
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),

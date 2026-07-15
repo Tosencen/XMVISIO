@@ -7,5 +7,5 @@ import androidx.compose.runtime.Composable
  */
 @Composable
 actual fun rememberAppVersion(): String {
-    return "1.0.3" // Desktop 版本（需要手动更新）
+    return "1.0.7" // Desktop 版本（需要手动更新）
 }

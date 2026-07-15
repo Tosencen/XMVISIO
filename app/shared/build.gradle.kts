@@ -59,6 +59,7 @@ kotlin {
             
             // Media3 (ExoPlayer) - 视频播放
             implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.ui)
             implementation(libs.androidx.media3.ui.compose)
             implementation(libs.androidx.media3.session)
             
@@ -81,8 +82,9 @@ kotlin {
             // Lottie - 动画
             implementation(libs.lottie)
 
+            // ===== 下载功能已暂时禁用 =====
             // YoutubeDL Android (Seal's fork) - 视频/音频下载
-            implementation(libs.youtubedl.android.library)
+            // implementation(libs.youtubedl.android.library)
         }
         
         val desktopMain by getting {

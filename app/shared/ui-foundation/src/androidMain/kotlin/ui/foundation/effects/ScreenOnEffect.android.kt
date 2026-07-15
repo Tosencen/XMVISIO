@@ -3,7 +3,7 @@ package me.him188.ani.app.ui.foundation.effects
 import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import me.him188.ani.app.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Composes an effect that keeps the screen on.

@@ -17,6 +17,3 @@ class WindowAdaptiveInfo {
 class WindowSizeClass {
     val cardVerticalPadding: Dp = 8.dp
 }
-
-val WindowSizeClass.cardVerticalPadding: Dp
-    get() = 8.dp

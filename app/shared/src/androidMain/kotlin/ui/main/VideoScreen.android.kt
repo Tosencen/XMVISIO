@@ -5,7 +5,9 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,9 +84,36 @@ actual fun VideoScreen(
             PackageManager.PERMISSION_GRANTED
     ) }
     var videos by remember { mutableStateOf<List<VideoInfo>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true)     }
+    var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
 
     var refreshTrigger by remember { mutableIntStateOf(0) }
+
+    // ContentObserver：监听 MediaStore 视频变化，自动刷新列表
+    // 类似 NextPlayer 的做法，任何增删改都能立即响应
+    val lastObserverChange = remember { mutableLongStateOf(0L) }
+    DisposableEffect(hasPermission) {
+        if (!hasPermission) return@DisposableEffect onDispose {}
+        val observer = object : ContentObserver(null) {
+            override fun onChange(selfChange: Boolean) {
+                val now = System.currentTimeMillis()
+                // 防抖：媒体扫描会突发大量 onChange，限流为至多每 300ms 刷新一次
+                if (now - lastObserverChange.longValue > 300) {
+                    lastObserverChange.longValue = now
+                    refreshTrigger++
+                }
+            }
+        }
+        val videoUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        } else {
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        }
+        context.contentResolver.registerContentObserver(videoUri, true, observer)
+        onDispose {
+            context.contentResolver.unregisterContentObserver(observer)
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -97,31 +126,42 @@ actual fun VideoScreen(
     // Android 10+ 媒体文件写/删权限请求
     var pendingVideoUri by remember { mutableStateOf<String?>(null) }
     var pendingRenameName by remember { mutableStateOf<String?>(null) }
+    var pendingOp by remember { mutableStateOf("") } // "delete" / "rename"
+    fun showToast(message: String) {
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+    }
     val mediaRequestLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK && pendingVideoUri != null) {
             scope.launch {
-                val success = withContext(Dispatchers.IO) {
-                    try {
-                        val uri = android.net.Uri.parse(pendingVideoUri!!)
-                        if (pendingRenameName != null) {
+                val uri = android.net.Uri.parse(pendingVideoUri!!)
+                if (pendingRenameName != null) {
+                    // 重命名：需要手动 update，因为 MediaStore.createWriteRequest 已由系统执行写入
+                    val ok = withContext(Dispatchers.IO) {
+                        try {
                             val values = android.content.ContentValues().apply {
                                 put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, pendingRenameName)
                             }
                             context.contentResolver.update(uri, values, null, null) > 0
-                        } else {
-                            context.contentResolver.delete(uri, null, null) > 0
-                        }
-                    } catch (_: Exception) { false }
+                        } catch (_: Exception) { false }
+                    }
+                    showToast(if (ok) "已重命名" else "重命名失败")
+                } else {
+                    // 删除操作：MediaStore.createDeleteRequest 已由系统完成删除
+                    showToast("已删除")
                 }
-                if (success) refreshTrigger++
+                refreshTrigger++
                 pendingVideoUri = null
                 pendingRenameName = null
+                pendingOp = ""
             }
         } else {
+            if (pendingOp == "delete") showToast("已取消删除")
+            else if (pendingOp == "rename") showToast("已取消重命名")
             pendingVideoUri = null
             pendingRenameName = null
+            pendingOp = ""
         }
     }
 
@@ -175,13 +215,19 @@ actual fun VideoScreen(
 
     LaunchedEffect(hasPermission, refreshTrigger) {
         if (hasPermission) {
+            // 背景自动刷新（observer/删除/重命名触发）显示刷新指示器
+            if (refreshTrigger > 0) isRefreshing = true
             delay(300)
             withContext(Dispatchers.IO) {
                 videos = queryVideos(context)
                 isLoading = false
+                isRefreshing = false
             }
         } else {
+            // 权限被吊销：清空旧数据，避免显示陈旧视频
+            videos = emptyList()
             isLoading = false
+            isRefreshing = false
         }
     }
 
@@ -219,8 +265,11 @@ actual fun VideoScreen(
                 .padding(padding)
         ) {
             PullToRefreshBox(
-                isRefreshing = false,
-                onRefresh = { refreshTrigger++ },
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    isRefreshing = true
+                    refreshTrigger++
+                },
                 modifier = Modifier.fillMaxSize()
             ) {
             when {
@@ -473,21 +522,23 @@ actual fun VideoScreen(
                             )
                             pendingVideoUri = video.uri
                             pendingRenameName = finalName
+                            pendingOp = "rename"
                             mediaRequestLauncher.launch(
                                 IntentSenderRequest.Builder(intent).build()
                             )
                         } catch (_: Exception) { }
                     } else {
                         scope.launch {
-                            try {
+                            val ok = try {
                                 withContext(Dispatchers.IO) {
                                     val values = android.content.ContentValues().apply {
                                         put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, finalName)
                                     }
-                                    context.contentResolver.update(uri, values, null, null)
+                                    context.contentResolver.update(uri, values, null, null) > 0
                                 }
-                                refreshTrigger++
-                            } catch (_: Exception) { }
+                            } catch (_: Exception) { false }
+                            showToast(if (ok) "已重命名" else "重命名失败")
+                            if (ok) refreshTrigger++
                         }
                     }
                     showRenameDialog = false
@@ -518,18 +569,20 @@ actual fun VideoScreen(
                             )
                             pendingVideoUri = video.uri
                             pendingRenameName = null
+                            pendingOp = "delete"
                             mediaRequestLauncher.launch(
                                 IntentSenderRequest.Builder(intent).build()
                             )
                         } catch (_: Exception) { }
                     } else {
                         scope.launch {
-                            try {
+                            val ok = try {
                                 withContext(Dispatchers.IO) {
-                                    context.contentResolver.delete(uri, null, null)
+                                    context.contentResolver.delete(uri, null, null) > 0
                                 }
-                                refreshTrigger++
-                            } catch (_: Exception) { }
+                            } catch (_: Exception) { false }
+                            showToast(if (ok) "已删除" else "删除失败")
+                            if (ok) refreshTrigger++
                         }
                     }
                     showDeleteDialog = false

@@ -25,8 +25,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.annotation.RequiresPermission
+import android.content.Context
 import androidx.core.content.getSystemService
-import me.him188.ani.app.platform.Context
 
 @RequiresPermission(android.Manifest.permission.VIBRATE)
 actual fun Context.vibrateIfSupported(strength: VibrationStrength) {

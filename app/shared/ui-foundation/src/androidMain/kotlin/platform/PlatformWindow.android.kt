@@ -11,6 +11,7 @@ package me.him188.ani.app.platform
 
 import android.app.Activity
 import android.content.ComponentCallbacks
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.view.View
@@ -22,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
@@ -134,4 +136,9 @@ fun rememberPlatformWindow(context: Context = LocalContext.current): PlatformWin
         onDispose { platformWindow.dispose(context) }
     }
     return platformWindow
+}
+
+internal fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    else -> null
 }

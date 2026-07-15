@@ -107,7 +107,9 @@ inline fun Logger.warn(e: () -> Throwable) {
 
 @OverloadResolutionByLambdaReturnType
 inline fun Logger.error(message: () -> String) {
-    error(message())
+    if (isErrorEnabled()) {
+        error(message())
+    }
 }
 
 @JvmName("errorThrowable")

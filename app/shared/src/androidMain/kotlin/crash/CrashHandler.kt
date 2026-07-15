@@ -3,7 +3,10 @@ package com.xmvisio.app.crash
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -35,6 +38,13 @@ class CrashHandler private constructor(private val context: Context) : Thread.Un
             }
             Thread.setDefaultUncaughtExceptionHandler(instance)
         }
+        
+        /**
+         * 全局 CoroutineExceptionHandler，捕获协程内未处理异常并转发到崩溃流程
+         */
+        val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+            instance?.uncaughtException(Thread.currentThread(), throwable)
+        }
     }
     
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
@@ -60,9 +70,11 @@ class CrashHandler private constructor(private val context: Context) : Thread.Un
                 context.startActivity(intent)
             }
             
-            // 终止进程
-            android.os.Process.killProcess(android.os.Process.myPid())
-            kotlin.system.exitProcess(1)
+            // 延迟终止进程，让崩溃页面有机会渲染和显示
+            Handler(Looper.getMainLooper()).postDelayed({
+                android.os.Process.killProcess(android.os.Process.myPid())
+                kotlin.system.exitProcess(1)
+            }, 3000) // 3 秒延迟，足够崩溃页展示
             
         } catch (e: Exception) {
             Log.e(TAG, "Error in crash handler", e)
