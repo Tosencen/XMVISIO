@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Feedback
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     onNavigateToTheme: () -> Unit,
     onNavigateToVideoPlayerSettings: () -> Unit,
+    onNavigateToFolderPreferences: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -77,7 +79,28 @@ fun SettingsScreen(
             SettingsCardGroup {
                 PlaybackSettingsSection(
                     onNavigateToTheme = onNavigateToTheme,
-                    onNavigateToVideoPlayerSettings = onNavigateToVideoPlayerSettings
+                    onNavigateToVideoPlayerSettings = onNavigateToVideoPlayerSettings,
+                    onNavigateToFolderPreferences = onNavigateToFolderPreferences
+                )
+            }
+
+            // 媒体库
+            Text(
+                text = "媒体库",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
+            )
+
+            SettingsCardGroup {
+                SettingsCardItem(
+                    icon = Icons.Filled.Folder,
+                    title = "文件夹管理",
+                    subtitle = "管理视频和音频文件夹",
+                    onClick = onNavigateToFolderPreferences,
+                    showChevron = true,
+                    isFirst = true,
+                    isLast = true
                 )
             }
 

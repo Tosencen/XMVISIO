@@ -7,6 +7,7 @@ data class VideoInfo(
     val duration: Long,
     val size: Long,
     val dateModified: Long,
+    val path: String = "",  // 文件系统路径
 ) {
     val formattedDuration: String
         get() {

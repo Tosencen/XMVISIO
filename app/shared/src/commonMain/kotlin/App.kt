@@ -89,6 +89,7 @@ fun App(
                     com.xmvisio.app.ui.settings.SettingsScreen(
                         onNavigateToTheme = { navController.navigate("theme_settings") },
                         onNavigateToVideoPlayerSettings = { navController.navigate("video_player_settings") },
+                        onNavigateToFolderPreferences = { navController.navigate("folder_preferences") },
                         onBack = { navController.popBackStack() }
                     )
                 }
@@ -105,6 +106,11 @@ fun App(
                 }
                 composable("video_player_settings") {
                     com.xmvisio.app.ui.settings.VideoPlayerPreferencesScreen(
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("folder_preferences") {
+                    com.xmvisio.app.ui.settings.FolderPreferencesScreen(
                         onBack = { navController.popBackStack() }
                     )
                 }

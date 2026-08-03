@@ -19,7 +19,8 @@ import com.xmvisio.app.data.SliderStyleManager
 @Composable
 actual fun PlaybackSettingsSection(
     onNavigateToTheme: () -> Unit,
-    onNavigateToVideoPlayerSettings: () -> Unit
+    onNavigateToVideoPlayerSettings: () -> Unit,
+    onNavigateToFolderPreferences: () -> Unit
 ) {
     val context = LocalContext.current
     val settingsManager = remember { PlaybackSettingsManager.getInstance(context) }

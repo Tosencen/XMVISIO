@@ -13,6 +13,7 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
@@ -51,10 +53,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.xmvisio.app.data.Folder
+import com.xmvisio.app.data.MediaHolder
 import com.xmvisio.app.data.VideoInfo
 import com.xmvisio.app.ui.components.UpdateButton
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 actual fun VideoScreen(
     onNavigateToPlayer: (VideoInfo, List<VideoInfo>) -> Unit,
@@ -193,6 +200,50 @@ actual fun VideoScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPropertiesDialog by remember { mutableStateOf(false) }
 
+    // 文件夹相关状态
+    var viewMode by rememberSaveable { mutableIntStateOf(0) } // 0=树形, 1=文件夹, 2=全部
+    var currentFolderPath by remember { mutableStateOf<String?>(null) }
+    var selectedFolder by remember { mutableStateOf<Folder?>(null) }
+    var showFolderMenu by remember { mutableStateOf(false) }
+
+    // 文件夹推导逻辑
+    val allFolders = remember(videos, sortBy, sortAscending) {
+        if (viewMode == 2) {
+            emptyList<Folder>()
+        } else {
+            val grouped = videos
+                .filter { it.path.isNotEmpty() }
+                .groupBy { java.io.File(it.path).parent ?: "" }
+            grouped.map { (path, vids) ->
+                Folder(
+                    name = java.io.File(path).name,
+                    path = path,
+                    mediaCount = vids.size,
+                    totalDuration = vids.sumOf { it.duration },
+                    totalSize = vids.sumOf { it.size },
+                    dateModified = vids.maxOfOrNull { it.dateModified } ?: 0L,
+                    parentPath = java.io.File(path).parent,
+                    foldersCount = 0
+                )
+            }.filter { it.path.isNotEmpty() }
+        }
+    }
+
+    val folderPathSet = remember(allFolders) { allFolders.map { it.path }.toSet() }
+
+    val displayFolders = remember(allFolders, viewMode, currentFolderPath) {
+        when (viewMode) {
+            0, 1 -> {
+                if (currentFolderPath == null) {
+                    allFolders.filter { it.parentPath !in folderPathSet }
+                } else {
+                    allFolders.filter { it.parentPath == currentFolderPath }
+                }
+            }
+            else -> emptyList()
+        }
+    }
+
     // 排序后的视频列表
     val sortedVideos = remember(videos, sortBy, sortAscending) {
         videos.sortedWith(
@@ -204,6 +255,39 @@ actual fun VideoScreen(
                 else -> compareBy<VideoInfo> { it.dateModified }
             }.let { if (sortAscending) it else it.reversed() }
         )
+    }
+
+    // 当前文件夹中的视频
+    val currentFolderVideos = remember(sortedVideos, currentFolderPath, viewMode, folderPathSet) {
+        if (viewMode == 2) {
+            sortedVideos
+        } else if (currentFolderPath != null) {
+            sortedVideos.filter {
+                val parent = java.io.File(it.path).parent
+                parent == currentFolderPath
+            }
+        } else {
+            // 根目录：显示不在任何子文件夹中的视频
+            sortedVideos.filter { it.path.isEmpty() || java.io.File(it.path).parent !in folderPathSet }
+        }
+    }
+
+    // 面包屑路径：从当前文件夹向上构建路径链
+    val breadcrumbPath = remember(currentFolderPath, allFolders) {
+        if (currentFolderPath == null) {
+            emptyList()
+        } else {
+            val pathList = mutableListOf<String>()
+            var current: String? = currentFolderPath
+            while (current != null) {
+                pathList.add(0, current)
+                val folder = allFolders.find { it.path == current }
+                current = folder?.parentPath?.let { parent ->
+                    if (parent == "/storage/emulated/0" || parent == "/sdcard") null else parent
+                }
+            }
+            pathList
+        }
     }
 
     // 排序变化后滚动到顶部
@@ -236,7 +320,13 @@ actual fun VideoScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("视频")
+                        Text(
+                            text = when (viewMode) {
+                                0 -> "视频"
+                                1 -> "文件夹"
+                                else -> "全部视频"
+                            }
+                        )
                         if (updateAvailable) {
                             Spacer(Modifier.width(4.dp))
                             UpdateButton(onClick = onUpdateCheck)
@@ -259,11 +349,62 @@ actual fun VideoScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = modifier.fillMaxSize()
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // 面包屑导航栏
+            if (viewMode != 2 && breadcrumbPath.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    IconButton(onClick = {
+                        val parentPath = allFolders.find { it.path == currentFolderPath }?.parentPath
+                        currentFolderPath = if (parentPath != null && allFolders.any { it.path == parentPath }) parentPath else null
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "返回上级",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    breadcrumbPath.forEachIndexed { index, path ->
+                        if (index > 0) {
+                            Text(
+                                text = ">",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        val isLast = index == breadcrumbPath.lastIndex
+                        Text(
+                            text = java.io.File(path).name,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = if (isLast) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable {
+                                    currentFolderPath = if (index == 0) null else path
+                                }
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
+
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = {
@@ -308,33 +449,128 @@ actual fun VideoScreen(
                     }
                 }
                 videos.isEmpty() -> {
-                    com.xmvisio.app.ui.components.EmptyStateView(
-                        message = "没有找到视频文件"
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = folderPainter(),
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "没有找到视频文件",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
                 else -> {
-                    if (isGridLayout) {
-                        VideoGrid(
-                            videos = sortedVideos,
-                            state = gridState,
-                            onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
-                            onVideoLongClick = { video ->
-                                selectedVideo = video
-                                showVideoMenu = true
+                    when (viewMode) {
+                        0 -> {
+                            // 树形模式：文件夹 + 直接视频
+                            val mediaHolder = MediaHolder(
+                                folders = displayFolders,
+                                videos = currentFolderVideos
+                            )
+                            com.xmvisio.app.ui.folder.MediaView(
+                                mediaHolder = mediaHolder,
+                                isGridLayout = isGridLayout,
+                                isFolderTreeMode = true,
+                                onFolderClick = { folder ->
+                                    currentFolderPath = folder.path
+                                },
+                                onFolderLongClick = { folder ->
+                                    selectedFolder = folder
+                                    showFolderMenu = true
+                                },
+                                onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
+                                onVideoLongClick = { video ->
+                                    selectedVideo = video
+                                    showVideoMenu = true
+                                },
+                                onAudioClick = {},
+                                onAudioLongClick = null
+                            )
+                        }
+                        1 -> {
+                            // 文件夹模式：子文件夹或当前文件夹视频
+                            if (displayFolders.isNotEmpty()) {
+                                val mediaHolder = MediaHolder(
+                                    folders = displayFolders,
+                                    videos = if (currentFolderPath != null) currentFolderVideos else emptyList()
+                                )
+                                com.xmvisio.app.ui.folder.MediaView(
+                                    mediaHolder = mediaHolder,
+                                    isGridLayout = isGridLayout,
+                                    isFolderTreeMode = false,
+                                    onFolderClick = { folder ->
+                                        currentFolderPath = folder.path
+                                    },
+                                    onFolderLongClick = { folder ->
+                                        selectedFolder = folder
+                                        showFolderMenu = true
+                                    },
+                                    onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
+                                    onVideoLongClick = { video ->
+                                        selectedVideo = video
+                                        showVideoMenu = true
+                                    },
+                                    onAudioClick = {},
+                                    onAudioLongClick = null
+                                )
+                            } else {
+                                // 没有子文件夹，直接显示当前文件夹的视频
+                                val mediaHolder = MediaHolder(
+                                    videos = currentFolderVideos
+                                )
+                                com.xmvisio.app.ui.folder.MediaView(
+                                    mediaHolder = mediaHolder,
+                                    isGridLayout = isGridLayout,
+                                    isFolderTreeMode = false,
+                                    onFolderClick = {},
+                                    onFolderLongClick = null,
+                                    onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
+                                    onVideoLongClick = { video ->
+                                        selectedVideo = video
+                                        showVideoMenu = true
+                                    },
+                                    onAudioClick = {},
+                                    onAudioLongClick = null
+                                )
                             }
-                        )
-                    } else {
-                        VideoList(
-                            videos = sortedVideos,
-                            state = listState,
-                            onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
-                            onVideoLongClick = { video ->
-                                selectedVideo = video
-                                showVideoMenu = true
+                        }
+                        else -> {
+                            // 全部模式：所有视频平铺
+                            if (isGridLayout) {
+                                VideoGrid(
+                                    videos = sortedVideos,
+                                    state = gridState,
+                                    onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
+                                    onVideoLongClick = { video ->
+                                        selectedVideo = video
+                                        showVideoMenu = true
+                                    }
+                                )
+                            } else {
+                                VideoList(
+                                    videos = sortedVideos,
+                                    state = listState,
+                                    onVideoClick = { video -> onNavigateToPlayer(video, sortedVideos) },
+                                    onVideoLongClick = { video ->
+                                        selectedVideo = video
+                                        showVideoMenu = true
+                                    }
+                                )
                             }
-                        )
-                }
-            }
+                        }
+                    }
             }
         }
         }
@@ -350,6 +586,26 @@ actual fun VideoScreen(
                             .padding(horizontal = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                    // 浏览模式
+                    Text("浏览模式", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = viewMode == 0,
+                            onClick = { viewMode = 0 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
+                        ) { Text("树形目录") }
+                        SegmentedButton(
+                            selected = viewMode == 1,
+                            onClick = { viewMode = 1 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
+                        ) { Text("文件夹") }
+                        SegmentedButton(
+                            selected = viewMode == 2,
+                            onClick = { viewMode = 2 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
+                        ) { Text("全部") }
+                    }
+
                     // 布局模式
                     Text("布局", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -488,6 +744,55 @@ actual fun VideoScreen(
         }
     }
 
+    // === 文件夹长按菜单 ===
+    if (showFolderMenu && selectedFolder != null) {
+        val sheetState = rememberModalBottomSheetState()
+        val folder = selectedFolder!!
+
+        ModalBottomSheet(
+            onDismissRequest = { showFolderMenu = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Text(
+                    text = folder.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Surface(onClick = {
+                    showFolderMenu = false
+                }) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column {
+                            Text("属性", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "${folder.mediaCount} 个文件",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // 重命名对话框
     if (showRenameDialog && selectedVideo != null) {
         val video = selectedVideo!!
@@ -616,6 +921,8 @@ actual fun VideoScreen(
 
 }
 
+}
+
 @Composable
 private fun VideoGrid(
     videos: List<VideoInfo>,
@@ -672,7 +979,7 @@ private fun VideoListItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -690,14 +997,14 @@ private fun VideoListItem(
                     contentDescription = video.name,
                     modifier = Modifier
                         .size(120.dp, 68.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(4.dp)),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(120.dp, 68.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(4.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center
                 ) {
@@ -823,6 +1130,7 @@ private suspend fun queryVideos(context: Context): List<VideoInfo> = withContext
         MediaStore.Video.Media.DURATION,
         MediaStore.Video.Media.SIZE,
         MediaStore.Video.Media.DATE_MODIFIED,
+        MediaStore.Video.Media.DATA,
     )
     val sortOrder = "${MediaStore.Video.Media.DATE_MODIFIED} DESC"
 
@@ -838,6 +1146,7 @@ private suspend fun queryVideos(context: Context): List<VideoInfo> = withContext
         val durationIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
         val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
         val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+        val pathIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
 
         while (cursor.moveToNext()) {
             val id = cursor.getLong(idIndex)
@@ -845,6 +1154,7 @@ private suspend fun queryVideos(context: Context): List<VideoInfo> = withContext
             val duration = cursor.getLong(durationIndex)
             val size = cursor.getLong(sizeIndex)
             val dateModified = cursor.getLong(dateIndex)
+            val path = cursor.getString(pathIndex) ?: ""
             val uri = ContentUris.withAppendedId(
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id
             ).toString()
@@ -856,7 +1166,8 @@ private suspend fun queryVideos(context: Context): List<VideoInfo> = withContext
                     name = name,
                     duration = duration,
                     size = size,
-                    dateModified = dateModified
+                    dateModified = dateModified,
+                    path = path
                 )
             )
         }
@@ -896,4 +1207,11 @@ private fun formatFileSize(bytes: Long): String {
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
         else -> "${"%.1f".format(bytes.toDouble() / (1024 * 1024 * 1024))} GB"
     }
+}
+
+@Composable
+private fun folderPainter(): androidx.compose.ui.graphics.painter.Painter {
+    val context = LocalContext.current
+    val resId = context.resources.getIdentifier("folder_thumb", "drawable", context.packageName)
+    return painterResource(resId)
 }
