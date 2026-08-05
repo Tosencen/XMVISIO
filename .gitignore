@@ -1,36 +1,57 @@
-# Gradle
+# ===== Gradle / Kotlin =====
 .gradle/
 build/
+**/build/
+.kotlin/
+.kotlinjs/
+kotlin-js-store/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Kotlin
-.kotlin/
-kotlin-js-store/
+# ===== Signing & secrets（密钥、凭据类一律不提交）=====
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.crt
+*.cer
+.env
+.env.*
+!.env.example
+*.properties.local
+secrets.*
+credentials.*
+local.properties
+local.properties.template.backup
 
-# Android
+# ===== Android =====
 *.apk
 *.aab
 *.ap_
 *.dex
-local.properties
 captures/
 .externalNativeBuild
 .cxx
 
-# IntelliJ IDEA
+# ===== IDE =====
 .idea/
 *.iml
 *.ipr
 *.iws
+.vscode/
+*.code-workspace
 out/
 
-# macOS
+# ===== macOS / Windows / Linux =====
 .DS_Store
-
-# Windows
+.Trash-*
+*.AppleDouble
+.LSOverride
 Thumbs.db
+desktop.ini
 
-# iOS
+# ===== iOS =====
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 Pods/
@@ -38,20 +59,17 @@ Pods/
 *.dSYM.zip
 *.dSYM
 
-# Logs
+# ===== Logs & temp =====
 *.log
-
-# Temporary files
 *.tmp
 *.temp
 *.swp
 *~
+*.orig
+*.rej
+*.bak
 
-# Signing keystores
-*.keystore
-*.jks
-
-# Project data
+# ===== Project data（本地运行数据，不提交）=====
 data/
 androidx/
 .codebuddy/
