@@ -19,19 +19,11 @@ android {
     namespace = "me.him188.ani.utils.logging"
 }
 
-dependencies {
-    jvmMainApi(libs.slf4j.api)
-}
-
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
 
-    sourceSets.nativeMain {
-        dependencies {
-//            implementation(libs.diamondedge.logging)
-            api(libs.kotlinx.io.core)
-            implementation(libs.kotlinx.io.bytestring)
-        }
+    sourceSets.androidMain.dependencies {
+        api(libs.slf4j.api)
     }
 }

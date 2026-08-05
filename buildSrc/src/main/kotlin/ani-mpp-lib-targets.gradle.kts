@@ -18,16 +18,14 @@ import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
-import org.jetbrains.kotlin.gradle.plugin.cocoapods.CocoapodsExtension
-import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 /*
- * 配置 JVM + Android 的 compose 项目. 默认不会配置 resources. 
+ * 配置 Android 的 compose 项目（桌面版/ iOS 已移除 2026-08）. 默认不会配置 resources.
  * 
  * 该插件必须在 kotlin, compose, android 之后引入.
  * 
- * 如果开了 android, 就会配置 desktop + android, 否则只配置 jvm.
+ * 如果开了 android, 就配置 android, 否则只配置 jvm.
  */
 
 val android = extensions.findByType(LibraryExtension::class)
@@ -37,60 +35,15 @@ val composeCompilerExtension =
 val enableHotReload = getLocalProperty("ani.compose.hot.reload")?.toBooleanStrict() != false
 
 configure<KotlinMultiplatformExtension> {
-    /**
-     * 平台架构:
-     * ```
-     * common
-     *   - jvm (可访问 JDK, 但不能使用 Android SDK 没有的 API)
-     *     - android (可访问 Android SDK)
-     *     - desktop (可访问 JDK)
-     *   - native
-     *     - apple
-     *       - ios
-     *         - iosArm64
-     *         - iosSimulatorArm64 TODO
-     * ```
-     *
-     * `native - apple - ios` 的架构是为了契合 Kotlin 官方推荐的默认架构. 以后如果万一要添加其他平台, 可方便添加.
-     */
-    if (project.enableIos) {
-        iosArm64()
-        iosSimulatorArm64() // to run tests
-        // no x86
-    }
+    // 只保留 Android 目标（桌面版/ iOS 已移除 2026-08）
     if (android != null) {
-        jvm("desktop")
         androidTarget {
             @OptIn(ExperimentalKotlinGradlePluginApi::class)
             instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
             unitTestVariant.sourceSetTree.set(KotlinSourceSetTree.unitTest)
         }
 
-        applyDefaultHierarchyTemplate {
-            common {
-                group("jvm") {
-                    withJvm()
-                    withAndroidTarget()
-                }
-                group("skiko") {
-                    withJvm()
-                    withNative()
-                }
-                group("mobile") {
-                    withAndroidTarget()
-                    withIos()
-                }
-            }
-        }
-
-        // This won't work (KT 2.1.0)
-//        sourceSets {
-//            val commonAndroidTest = create("commonAndroidTest") {
-//                dependsOn(getByName("jvmTest"))
-//            }
-//            getByName("androidInstrumentedTest").dependsOn(commonAndroidTest)
-//            getByName("androidUnitTest").dependsOn(commonAndroidTest)
-//        }
+        applyDefaultHierarchyTemplate()
     } else {
         jvm()
 
@@ -132,13 +85,6 @@ configure<KotlinMultiplatformExtension> {
         implementation(project(":core:utils:testing"))
     }
 
-    if (composeExtension != null) {
-        sourceSets.getByName("desktopMain").dependencies {
-            val compose = ComposePlugin.Dependencies(project)
-            implementation(compose.desktop.uiTestJUnit4)
-        }
-    }
-
     if (android != null && composeExtension != null) {
         val composeVersion = versionCatalogs.named("libs").findVersion("jetpack-compose").get()
         listOf(
@@ -166,18 +112,6 @@ configure<KotlinMultiplatformExtension> {
             androidExtension.sourceSets["main"].aidl.srcDirs(androidMainSourceSetDir.resolve("aidl"))
             // add more sourceSet dirs if necessary.
         }
-    }
-}
-
-if (enableIos) {
-    // ios testing workaround
-    // https://developer.squareup.com/blog/kotlin-multiplatform-shared-test-resources/
-    tasks.register<Copy>("copyiOSTestResources") {
-        from("src/commonTest/resources")
-        into("build/bin/iosSimulatorArm64/debugTest/resources")
-    }
-    tasks.named("iosSimulatorArm64Test") {
-        dependsOn("copyiOSTestResources")
     }
 }
 
@@ -252,23 +186,4 @@ if (android != null) {
     apply(plugin = "de.mannodermaus.android-junit5")
 }
 
-if (enableIos) {
-    if (getOs() == Os.MacOS) {
-        apply(plugin = "org.jetbrains.kotlin.native.cocoapods")
 
-        configure<KotlinMultiplatformExtension> {
-            this.configure<CocoapodsExtension> {
-                version = project.version.toString()
-                summary = project.name
-                homepage = "https://github.com/Tosencen/XMVISIO"
-                name = project.name
-
-                ios.deploymentTarget = "16.0"
-
-                // Maps custom Xcode configuration to NativeBuildType
-                xcodeConfigurationToNativeBuildType["CUSTOM_DEBUG"] = NativeBuildType.DEBUG
-                xcodeConfigurationToNativeBuildType["CUSTOM_RELEASE"] = NativeBuildType.RELEASE 
-            }
-        }
-    }
-}

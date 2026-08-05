@@ -51,11 +51,6 @@ kotlin {
         api(libs.compose.material3.adaptive.core)
         // Preview only
     }
-    sourceSets.desktopMain.dependencies {
-        implementation(libs.jna)
-        implementation(libs.jna.platform)
-        api(libs.directories)
-    }
 }
 
 android {

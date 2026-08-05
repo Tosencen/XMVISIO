@@ -27,12 +27,8 @@ kotlin {
         implementation(libs.androidx.collection)
     }
 
-    sourceSets.getByName("jvmMain").dependencies {
+    sourceSets.getByName("androidMain").dependencies {
         api(libs.jetbrains.annotations)
-    }
-
-    sourceSets.nativeMain.dependencies {
-        implementation(libs.kotlinx.datetime)
     }
 }
 

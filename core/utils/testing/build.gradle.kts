@@ -26,7 +26,7 @@ kotlin {
         }
     }
 
-    sourceSets.getByName("jvmMain") {
+    sourceSets.getByName("androidMain") {
         dependencies {
             implementation(kotlin("test-junit5", libs.versions.kotlin.get()))
         }

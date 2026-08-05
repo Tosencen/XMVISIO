@@ -90,12 +90,7 @@ kotlin {
             // implementation(libs.youtubedl.android.library)
         }
         
-        val desktopMain by getting {
-            dependencies {
-                implementation(compose.desktop.currentOs)
-            }
-        }
-
+        // desktopMain/iosMain 已随桌面版移除（2026-08），仅保留 Android target
         val androidInstrumentedTest by getting {
             dependencies {
                 // Compose UI 测试（instrumented，跑在模拟器/真机上）
@@ -108,12 +103,7 @@ kotlin {
                 // 调用已移除的 InputManager.getInstance()，在 Android 17 (API 36) 上崩溃
                 implementation(libs.androidx.test.espresso.core)
             }
-        }
-        
-        iosMain.dependencies {
-            // iOS specific dependencies
-        }
-    }
+        }    }
 }
 
 android {
