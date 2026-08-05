@@ -18,17 +18,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.advanceEventTime
-import androidx.compose.ui.test.down
-import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.moveBy
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.up
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -113,7 +106,11 @@ class ReorderNoSnapBackTest {
         composeRule.waitForIdle()
 
         // 长按 C 的拖拽手柄，向上拖过 2 个 item 高度（距离按实际 bounds 计算，避免密度依赖），再释放
-        dragHandleBySteps(tag = "handle_C", deltaYPerStep = -0.6f)
+        composeRule.onNodeWithTag("handle_C").dragHandleBySteps(
+            itemRef = composeRule.onAllNodesWithTag("item_row")[0],
+            density = composeRule.density,
+            deltaYPerStep = -0.6f
+        )
         composeRule.waitForIdle()
 
         // 核心断言：释放后顺序保持新顺序（无弹回）
@@ -133,7 +130,11 @@ class ReorderNoSnapBackTest {
         }
         composeRule.waitForIdle()
 
-        dragHandleBySteps(tag = "handle_B", deltaYPerStep = 0.6f)
+        composeRule.onNodeWithTag("handle_B").dragHandleBySteps(
+            itemRef = composeRule.onAllNodesWithTag("item_row")[0],
+            density = composeRule.density,
+            deltaYPerStep = 0.6f
+        )
         composeRule.waitForIdle()
 
         assertEquals(listOf("A", "C", "B"), latestOrder)
@@ -153,33 +154,21 @@ class ReorderNoSnapBackTest {
         composeRule.waitForIdle()
 
         // 第一次：R 拖到顶部 → R,P,Q
-        dragHandleBySteps(tag = "handle_R", deltaYPerStep = -0.6f)
+        composeRule.onNodeWithTag("handle_R").dragHandleBySteps(
+            itemRef = composeRule.onAllNodesWithTag("item_row")[0],
+            density = composeRule.density,
+            deltaYPerStep = -0.6f
+        )
         composeRule.waitForIdle()
         assertEquals(listOf("R", "P", "Q"), latestOrder)
 
         // 第二次：Q 拖到顶部 → Q,R,P（基于第一次的结果继续拖，验证缓存未弹回）
-        dragHandleBySteps(tag = "handle_Q", deltaYPerStep = -0.6f)
+        composeRule.onNodeWithTag("handle_Q").dragHandleBySteps(
+            itemRef = composeRule.onAllNodesWithTag("item_row")[0],
+            density = composeRule.density,
+            deltaYPerStep = -0.6f
+        )
         composeRule.waitForIdle()
         assertEquals(listOf("Q", "R", "P"), latestOrder)
-    }
-
-    /**
-     * 执行长按拖拽：按住 [tag] 手柄，分 6 步移动，每步 [deltaYPerStep] × itemHeight，再释放。
-     * 总位移 3.6 × itemHeight：从 index 2 到 index 0（或反向）跨 2 格绰绰有余，
-     * 且距离随实际 item 尺寸自适应，不同密度/分辨率下均稳定。
-     */
-    private fun dragHandleBySteps(tag: String, deltaYPerStep: Float) {
-        // 从任意 item 读取实际高度（所有 item 同高），不依赖设备密度
-        val bounds = composeRule.onAllNodesWithTag("item_row")[0].getUnclippedBoundsInRoot()
-        val itemHeight = with(composeRule.density) { (bounds.bottom - bounds.top).toPx() }
-        val step = itemHeight * deltaYPerStep
-        composeRule.onNodeWithTag(tag).performTouchInput {
-            down(center)
-            advanceEventTime(1200) // 超过 longPressTimeoutMillis（默认 500ms）触发长按拖拽
-            repeat(6) {
-                moveBy(Offset(0f, step), delayMillis = 16)
-            }
-            up()
-        }
     }
 }

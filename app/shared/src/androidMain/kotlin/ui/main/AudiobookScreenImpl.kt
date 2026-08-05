@@ -39,6 +39,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -806,7 +807,7 @@ private fun folderPainterForAudio(): androidx.compose.ui.graphics.painter.Painte
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AudioItem(
+internal fun AudioItem(
     audio: LocalAudioFile,
     savedPosition: kotlin.time.Duration,
     isThisAudioPlaying: Boolean,
@@ -857,8 +858,12 @@ private fun AudioItem(
                 }
                 if (isReorderMode) {
                     // dragHandleModifier 必须应用到拖拽手柄上（draggableHandle() 内含长按拖拽手势），
-                    // 否则排序模式下无法拖动（曾因漏挂导致无法调整音频位置）
-                    Box(Modifier.size(48.dp).then(dragHandleModifier), contentAlignment = Alignment.Center) {
+                    // 否则排序模式下无法拖动（曾因漏挂导致无法调整音频位置）。
+                    // testTag 供 instrumented 测试定位真实拖拽手柄。
+                    Box(
+                        Modifier.size(48.dp).testTag("drag_handle_${audio.id}").then(dragHandleModifier),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(Icons.Default.DragHandle, "拖动排序", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
                     }
                 }
