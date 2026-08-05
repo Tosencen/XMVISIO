@@ -6,9 +6,16 @@
 
 ## 功能
 
-- 本地音频播放与管理
-- 音频分类整理
-- 批量选择、批量删除
+- **有声**：本地音频播放与管理
+  - 音频分类整理（文件夹视图 / 分类管理）
+  - 批量选择、批量移动、批量删除
+  - 分类内拖拽排序，顺序持久化
+  - 播放位置记忆（续播）、倍速播放、定时关闭
+  - 最近播放、正在播放的迷你播放条
+- **视频**：本地视频浏览与播放
+  - 文件夹浏览 + 面包屑导航
+  - 视频播放器（手势控制：进度、音量、亮度）
+- 更新检查（APK 签名校验后安装）
 - Material 3 界面，跟随系统深浅色
 - 在线下载（yt-dlp）代码已在仓库里，但当前版本暂时关闭，之后会重新打开
 
@@ -63,6 +70,18 @@ signing.keyPassword=xxx
 
 未配置 `signing.storeFile` 时默认使用 `~/Desktop/xmvisio-release.keystore`。**不要把密码写进 `build.gradle.kts` 或任何会提交的文件里。**
 
+## 测试
+
+```bash
+# 单元测试（JVM）
+./gradlew :app:shared:testDebugUnitTest
+
+# Instrumented UI 测试（需要连接模拟器/真机）
+./gradlew :app:shared:connectedDebugAndroidTest
+```
+
+包含音频分类缓存逻辑、排序不弹回等回归场景的单元/UI 测试。
+
 ## 目录结构
 
 ```
@@ -76,7 +95,7 @@ XMVISIO/
 
 只打包了 arm64-v8a，别的架构需要的话自己在 `app/android/build.gradle.kts` 里改 `abiFilters`。
 
-> 桌面版已于 2026-08 移除，不再维护。
+> 桌面版已于 2026-08 移除，不再维护。当前版本：v1.0.8
 
 ## 许可证
 
