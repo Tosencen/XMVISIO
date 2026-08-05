@@ -122,9 +122,7 @@ fun ThemeSettingsPage(
                             onCheckedChange = { checked ->
                                 onThemeChange(themeSettings.copy(useDynamicTheme = checked))
                             },
-                            enabled = supportDynamic,
-                            isFirst = true,
-                            isLast = false
+                            enabled = supportDynamic
                         )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -136,9 +134,7 @@ fun ThemeSettingsPage(
                             checked = themeSettings.useBlackBackground,
                             onCheckedChange = { checked ->
                                 onThemeChange(themeSettings.copy(useBlackBackground = checked))
-                            },
-                            isFirst = false,
-                            isLast = true
+                            }
                         )
                     }
                 }
@@ -210,9 +206,7 @@ private fun SettingsSwitchItemContent(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    isFirst: Boolean = false,
-    isLast: Boolean = false
+    enabled: Boolean = true
 ) {
     val switchInteractionSource = remember { MutableInteractionSource() }
     val listItemInteractionSource = remember { MutableInteractionSource() }

@@ -36,16 +36,14 @@ object SystemBarConfigurator {
     }
     
     /**
-     * 创建导航栏样式（始终透明）
+     * 创建导航栏样式
      */
-    fun createNavigationBarStyle(isDark: Boolean): SystemBarStyle {
+    fun createNavigationBarStyle(isDark: Boolean, navigationBarColor: Color = Color.Transparent): SystemBarStyle {
+        val colorInt = navigationBarColor.toAndroidColor()
         return if (isDark) {
-            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            SystemBarStyle.dark(colorInt)
         } else {
-            SystemBarStyle.light(
-                android.graphics.Color.TRANSPARENT,
-                android.graphics.Color.TRANSPARENT
-            )
+            SystemBarStyle.light(colorInt, colorInt)
         }
     }
 }

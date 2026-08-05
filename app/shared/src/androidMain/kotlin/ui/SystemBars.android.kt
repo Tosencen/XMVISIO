@@ -22,13 +22,13 @@ actual fun ConfigureSystemBars(
     val activity = LocalContext.current as? ComponentActivity
     
     if (activity != null) {
-        DisposableEffect(isDark, statusBarColor) {
+        DisposableEffect(isDark, statusBarColor, navigationBarColor) {
             activity.enableEdgeToEdge(
                 statusBarStyle = SystemBarConfigurator.createStatusBarStyle(
                     isDark = isDark,
                     statusBarColor = statusBarColor
                 ),
-                navigationBarStyle = SystemBarConfigurator.createNavigationBarStyle(isDark)
+                navigationBarStyle = SystemBarConfigurator.createNavigationBarStyle(isDark, navigationBarColor)
             )
             onDispose { }
         }

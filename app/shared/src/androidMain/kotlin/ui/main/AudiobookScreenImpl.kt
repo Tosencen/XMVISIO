@@ -459,7 +459,7 @@ internal fun AudiobookScreenImpl(
                             },
                             onNextClick = { state.globalController.playNext() },
                             onPreviousClick = { state.globalController.playPrevious() },
-                            onFavoriteClick = {}, onClick = { onNavigateToPlayer(playingAudio) }, isFavorite = false
+                            onClick = { onNavigateToPlayer(playingAudio) }
                         )
                     }
                 }

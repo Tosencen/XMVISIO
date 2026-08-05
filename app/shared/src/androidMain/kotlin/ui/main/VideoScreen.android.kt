@@ -177,12 +177,10 @@ actual fun VideoScreen(
             if (state.viewMode != 2 && state.breadcrumbPath.isNotEmpty()) {
                 BreadcrumbBar(
                     breadcrumbPath = state.breadcrumbPath,
-                    allFolders = state.allFolders,
                     onNavigateBack = { state.navigateToParentFolder() },
                     onNavigateToPath = { path ->
                         state.currentFolderPath = if (path == null) null else path
-                    },
-                    currentFolderPath = state.currentFolderPath
+                    }
                 )
             }
 
@@ -241,10 +239,8 @@ actual fun VideoScreen(
 @Composable
 private fun BreadcrumbBar(
     breadcrumbPath: List<String>,
-    allFolders: List<Folder>,
     onNavigateBack: () -> Unit,
-    onNavigateToPath: (String?) -> Unit,
-    currentFolderPath: String?
+    onNavigateToPath: (String?) -> Unit
 ) {
     Row(
         modifier = Modifier

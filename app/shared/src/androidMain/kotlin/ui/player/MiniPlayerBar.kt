@@ -52,10 +52,8 @@ fun MiniPlayerBar(
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onPreviousClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isFavorite: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     val overlayAlpha by animateFloatAsState(
         targetValue = if (isPlaying) 0.0f else 0.4f,
@@ -226,8 +224,22 @@ fun MiniPlayerBar(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // 上一首按钮
+                    IconButton(
+                        enabled = canSkipPrevious,
+                        onClick = onPreviousClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = "上一首",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
                     // 播放/暂停按钮
                     IconButton(
                         onClick = onPlayPauseClick,
@@ -254,6 +266,7 @@ fun MiniPlayerBar(
                             modifier = Modifier.size(18.dp)
                         )
                     }
+
                 }
             }
         }

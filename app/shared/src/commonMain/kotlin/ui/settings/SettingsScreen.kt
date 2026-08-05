@@ -79,8 +79,7 @@ fun SettingsScreen(
             SettingsCardGroup {
                 PlaybackSettingsSection(
                     onNavigateToTheme = onNavigateToTheme,
-                    onNavigateToVideoPlayerSettings = onNavigateToVideoPlayerSettings,
-                    onNavigateToFolderPreferences = onNavigateToFolderPreferences
+                    onNavigateToVideoPlayerSettings = onNavigateToVideoPlayerSettings
                 )
             }
 
