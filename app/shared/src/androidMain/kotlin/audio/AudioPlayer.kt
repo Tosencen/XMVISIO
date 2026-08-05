@@ -300,14 +300,19 @@ class AudioPlayer(private val context: Context) {
     }
     
     /**
-     * 更新当前位置（用于UI更新）
+     * 更新当前位置（用于UI更新）。
+     * UI 每 100ms 调用一次，但播放位置只每秒持久化一次，
+     * 避免每 100ms 写一次 SharedPreferences（每秒 10 次磁盘写入）。
      */
     fun updateCurrentPosition() {
         mediaPlayer?.let {
             if (it.isPlaying) {
                 _currentPosition.value = it.currentPosition.milliseconds
                 
-                // 每次更新位置时保存到本地（每秒保存一次）
+                // 节流：距上次保存不足 1 秒则跳过
+                val now = System.currentTimeMillis()
+                if (now - lastPositionSaveTime < 1000) return
+                lastPositionSaveTime = now
                 _currentAudioId.value?.let { id ->
                     scope.launch(Dispatchers.IO) {
                         positionManager.savePosition(id, _currentPosition.value)
@@ -316,6 +321,8 @@ class AudioPlayer(private val context: Context) {
             }
         }
     }
+
+    private var lastPositionSaveTime = 0L
     
     /**
      * 设置播放速度（全局保存）

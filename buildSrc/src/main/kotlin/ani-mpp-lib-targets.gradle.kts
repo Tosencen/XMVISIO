@@ -211,7 +211,8 @@ if (android != null) {
             minSdk = getIntProperty("android.min.sdk")
             testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             testInstrumentationRunnerArguments.set("runnerBuilder", "de.mannodermaus.junit5.AndroidJUnit5Builder")
-            testInstrumentationRunnerArguments["package"] = "me.him188"
+            // 注意：不要设置 package 参数限制测试发现范围（旧模板遗留的 me.him188 会导致
+            // 其他包名的 instrumented 测试全部被忽略，显示 “Starting 0 tests”）
         }
         packaging {
             resources {

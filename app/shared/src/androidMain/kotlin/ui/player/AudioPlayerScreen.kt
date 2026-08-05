@@ -1,6 +1,7 @@
 package com.xmvisio.app.ui.player
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -174,7 +175,7 @@ fun AudioPlayerScreen(
             },
             onError = { error ->
                 // TODO: 显示错误提示
-                println("播放器错误: ${error.message}")
+                Log.w("AudioPlayerScreen", "播放器错误: ${error.message}")
             }
         )
     }
@@ -454,7 +455,7 @@ fun AudioPlayerScreen(
                             audioPlayer.play()
                         },
                         onError = { error ->
-                            println("播放器错误: ${error.message}")
+                            Log.w("AudioPlayerScreen", "播放器错误: ${error.message}")
                         }
                     )
                 }
@@ -490,6 +491,15 @@ private fun ProgressSlider(
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) }
     var currentVolume by remember { mutableIntStateOf(audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)) }
+
+    // ===== 拖动状态（修复拖动卡顿：本地值驱动滑块 + seek 节流）=====
+    var isDragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
+    // 节流：拖动时最多每 100ms seek 一次，避免每帧 seekTo 卡顿
+    val seekThrottle = remember { object {
+        var lastSeekTime = 0L
+        var pendingPosition = -1L
+    } }
     
     // 实时更新音量
     LaunchedEffect(Unit) {
@@ -576,20 +586,46 @@ private fun ProgressSlider(
         
         Spacer(modifier = Modifier.height(8.dp))
         
+        // 拖动时的显示值：跟手（本地值），非拖动时跟随播放进度
+        val displayFraction = if (isDragging) {
+            dragFraction
+        } else if (duration.inWholeMilliseconds > 0) {
+            (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+        // 拖动处理：本地值驱动 + 100ms 节流，松手做最后一次精确 seek
+        val onDragValueChange: (Float) -> Unit = { value ->
+            if (!isDragging) seekThrottle.lastSeekTime = 0L
+            isDragging = true
+            dragFraction = value
+            val newPosition = (duration.inWholeMilliseconds * value).toLong().coerceIn(0L, duration.inWholeMilliseconds)
+            if (duration.inWholeMilliseconds > 0) {
+                seekThrottle.pendingPosition = newPosition
+                val now = System.currentTimeMillis()
+                if (now - seekThrottle.lastSeekTime >= 100) {
+                    seekThrottle.lastSeekTime = now
+                    onSeek(newPosition.milliseconds)
+                }
+            }
+        }
+        val onDragFinished: () -> Unit = {
+            if (seekThrottle.pendingPosition >= 0) {
+                onSeek(seekThrottle.pendingPosition.milliseconds)
+            }
+            seekThrottle.pendingPosition = -1L
+            isDragging = false
+        }
+
         // 根据样式渲染不同的进度条
         when (sliderStyle) {
             com.xmvisio.app.data.SliderStyle.DEFAULT -> {
                 // 默认样式：标准 Slider
                 Slider(
-                    value = if (duration.inWholeMilliseconds > 0) {
-                        (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
-                    } else {
-                        0f
-                    },
-                    onValueChange = { value ->
-                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
-                        onSeek(newPosition.milliseconds)
-                    },
+                    value = displayFraction,
+                    onValueChange = onDragValueChange,
+                    onValueChangeFinished = onDragFinished,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -597,15 +633,9 @@ private fun ProgressSlider(
             com.xmvisio.app.data.SliderStyle.SQUIGGLY -> {
                 // 波浪样式：使用第三方库 SquigglySlider
                 me.saket.squiggles.SquigglySlider(
-                    value = if (duration.inWholeMilliseconds > 0) {
-                        (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
-                    } else {
-                        0f
-                    },
-                    onValueChange = { value ->
-                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
-                        onSeek(newPosition.milliseconds)
-                    },
+                    value = displayFraction,
+                    onValueChange = onDragValueChange,
+                    onValueChangeFinished = onDragFinished,
                     valueRange = 0f..1f,
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
@@ -619,15 +649,9 @@ private fun ProgressSlider(
             com.xmvisio.app.data.SliderStyle.SLIM -> {
                 // 纤细样式：无滑块的自定义轨道
                 Slider(
-                    value = if (duration.inWholeMilliseconds > 0) {
-                        (currentPosition.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat())
-                    } else {
-                        0f
-                    },
-                    onValueChange = { value ->
-                        val newPosition = (duration.inWholeMilliseconds * value).toLong()
-                        onSeek(newPosition.milliseconds)
-                    },
+                    value = displayFraction,
+                    onValueChange = onDragValueChange,
+                    onValueChangeFinished = onDragFinished,
                     thumb = { Spacer(modifier = Modifier.size(0.dp)) },
                     track = { sliderState ->
                         com.xmvisio.app.ui.foundation.PlayerSliderTrack(
@@ -646,13 +670,18 @@ private fun ProgressSlider(
             }
         }
         
-        // 时间显示
+        // 时间显示（拖动时显示拖动位置，松手后显示实际播放位置）
+        val displayPosition = if (isDragging) {
+            (duration.inWholeMilliseconds * dragFraction).toLong().milliseconds
+        } else {
+            currentPosition
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = formatDuration(currentPosition),
+                text = formatDuration(displayPosition),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

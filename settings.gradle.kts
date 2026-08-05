@@ -31,7 +31,8 @@ plugins {
 include(":app:shared")
 // include(":app:shared:ui-foundation") // OpenAni 遗留模块，暂无依赖
 include(":app:android")
-include(":app:desktop")
+// 桌面版已移除（2026-08-05），只保留手机版
+// include(":app:desktop")
 
 // 核心工具模块
 include(":core:utils:platform")

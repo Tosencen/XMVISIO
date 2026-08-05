@@ -10,10 +10,16 @@ Note: Apps signed with the OLD key (v1.0.6 and earlier) must be UNINSTALLED
 Signing Configuration
 ---------------------
 Keystore File: ~/Desktop/xmvisio-release.keystore
-Keystore Password: ***REDACTED***
 Key Alias: xmvisio
-Key Password: ***REDACTED***
 Validity: 10000 days
+
+  !!! 密码不在此文件中保存（2026-08-05 起） !!!
+  密码与 keystore 路径改由 local.properties 提供（该文件已被 .gitignore 排除，不会提交到仓库）：
+      signing.storeFile
+      signing.storePassword
+      signing.keyAlias
+      signing.keyPassword
+  构建脚本（app/android/build.gradle.kts）自动从 local.properties / 环境变量读取。
 
 Certificate Information
 -----------------------
@@ -24,7 +30,9 @@ MD5: (deprecated, not recorded)
 
 Important Notes
 ---------------
-1. Keep the keystore file and passwords secure
+1. Keep the keystore file and passwords secure (local.properties is NOT committed)
 2. From v1.0.7 onward, all updates MUST use this same key for upgrade installation
 3. If the keystore is lost, you cannot update the app
 4. v1.0.6 and earlier used a DIFFERENT (now-lost) key — those installs need uninstall first
+5. The app verifies the update APK's signing certificate against the currently
+   installed app before allowing installation (see UpdateInstaller.verifyApkSignature)

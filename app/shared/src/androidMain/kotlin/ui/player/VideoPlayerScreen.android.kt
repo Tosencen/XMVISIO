@@ -16,6 +16,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.drawable.Icon
 import android.net.Uri
+import android.util.Log
 import android.app.PictureInPictureParams
 import android.os.Build
 import android.util.Rational
@@ -94,6 +95,10 @@ actual fun VideoPlayerScreen(
     // 当前播放的视频索引（内部追踪，不触发 player 重建）
     var internalCurrentIndex by remember { mutableIntStateOf(currentIndex) }
 
+    // ===== UI 状态持有者 =====
+    val uiState = remember { VideoPlayerUiState() }
+    uiState.internalCurrentIndex = currentIndex
+
     // Player 只创建一次，不复建（参考 NextPlayer：通过 setMediaItems + seekToNext/Previous 切换视频）
     val player = remember {
         ExoPlayer.Builder(context).build()
@@ -145,7 +150,9 @@ actual fun VideoPlayerScreen(
                         setTargetGain(((volumeBoost - 1f) * 1000f).toInt())
                     }
                     lastSessionId = sessionId
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    Log.w("VideoPlayerScreen", "创建 LoudnessEnhancer 失败", e)
+                }
             }
             delay(1000)
         }
@@ -170,6 +177,10 @@ actual fun VideoPlayerScreen(
     var loopMode by remember { mutableStateOf(prefs.loopMode) }
     var isBuffering by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
+    // 进度条拖动状态：拖动期间用本地值驱动滑块，避免与播放进度轮询抢写导致抖动
+    var isDragging by remember { mutableStateOf(false) }
+    var dragPosition by remember { mutableLongStateOf(0L) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
 
     // === 错误处理 ===
     var playerError by remember { mutableStateOf<Pair<Int, String>?>(null) }
@@ -215,8 +226,11 @@ actual fun VideoPlayerScreen(
 
     LaunchedEffect(player) {
         while (isActive) {
-            currentPosition = player.currentPosition
-            totalDuration = player.duration
+            // 拖动期间暂停写入，避免播放进度把正在拖的滑块往回拽
+            if (!isDragging) {
+                currentPosition = player.currentPosition
+                totalDuration = player.duration
+            }
             delay(200)
         }
     }
@@ -266,6 +280,18 @@ actual fun VideoPlayerScreen(
         var lastSeekTime = 0L
         var pendingPosition = -1L
     } }
+
+    // 结束 seek（松手/取消时调用）：先恢复精确 seek 参数，再做最后一次精确 seek。
+    // 若仍用 CLOSEST_SYNC（最近关键帧），最终进度会被吸附到关键帧上，与指示器显示不符。
+    fun endSeek(seekToFinal: Boolean = true) {
+        savedSeekParameters?.let { player.setSeekParameters(it) }
+            ?: player.setSeekParameters(SeekParameters.DEFAULT)
+        savedSeekParameters = null
+        if (seekToFinal && seekThrottle.pendingPosition >= 0) {
+            player.seekTo(seekThrottle.pendingPosition)
+        }
+        seekThrottle.pendingPosition = -1L
+    }
 
     // 侧滑面板状态
     var activeOverlayPanel by remember { mutableStateOf(OverlayPanelType.NONE) }
@@ -371,7 +397,9 @@ actual fun VideoPlayerScreen(
     DisposableEffect(activity) {
         onDispose {
             if (pipReceiverRegistered) {
-                try { activity?.unregisterReceiver(pipReceiver) } catch (_: Exception) {}
+                try { activity?.unregisterReceiver(pipReceiver) } catch (e: Exception) {
+                    Log.w("VideoPlayerScreen", "注销 PiP receiver 失败", e)
+                }
                 pipReceiverRegistered = false
             }
         }
@@ -417,7 +445,9 @@ actual fun VideoPlayerScreen(
                 ))
                 .build()
             activity.enterPictureInPictureMode(params)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w("VideoPlayerScreen", "进入画中画失败", e)
+        }
     }
 
     // === 屏幕方向状态（RotationState） ===
@@ -587,23 +617,14 @@ actual fun VideoPlayerScreen(
                             isSeeking = true
                         },
                         onDragEnd = {
-                            // 关键：先恢复精确 seek 参数，再做最后一次 seek。
-                            // 否则仍使用 CLOSEST_SYNC（最近关键帧），最终进度会被吸附到
-                            // 关键帧上，与指示器显示的位置不符（跟手但进度不准）。
-                            savedSeekParameters?.let { player.setSeekParameters(it) }
-                                ?: player.setSeekParameters(SeekParameters.DEFAULT)
-                            savedSeekParameters = null
-                            // 松开时执行最后一次（精确）seek
-                            if (seekThrottle.pendingPosition >= 0) {
-                                player.seekTo(seekThrottle.pendingPosition)
-                            }
+                            // 恢复精确参数后执行最后一次精确 seek
+                            endSeek()
                             showSeekIndicator = false
                             isSeeking = false
                         },
                         onDragCancel = {
-                            savedSeekParameters?.let { player.setSeekParameters(it) }
-                                ?: player.setSeekParameters(SeekParameters.DEFAULT)
-                            savedSeekParameters = null
+                            // 取消时不 seek，只恢复精确参数
+                            endSeek(seekToFinal = false)
                             showSeekIndicator = false
                             isSeeking = false
                         },
@@ -1082,14 +1103,32 @@ actual fun VideoPlayerScreen(
                             com.xmvisio.app.data.SliderStyle.SQUIGGLY -> {
                                 val fraction = if (totalDuration > 0) (currentPosition.toFloat() / totalDuration).coerceIn(0f, 1f) else 0f
                                 me.saket.squiggles.SquigglySlider(
-                                    value = fraction,
+                                    value = if (isDragging) dragFraction else fraction,
                                     onValueChange = { f ->
                                         if (!prefs.controlsLocked) {
+                                            if (!isDragging) seekThrottle.lastSeekTime = 0L // 新拖动开始，重置节流
+                                            isDragging = true
                                             isSeeking = true
-                                            player.seekTo((f * totalDuration).toLong())
+                                            dragFraction = f
+                                            if (totalDuration > 0) {
+                                                val newPos = (f * totalDuration).toLong().coerceIn(0L, totalDuration)
+                                                // 节流：拖动时最多每 100ms seek 一次，避免每帧 seekTo 卡顿
+                                                seekThrottle.pendingPosition = newPos
+                                                val now = System.currentTimeMillis()
+                                                if (now - seekThrottle.lastSeekTime >= 100) {
+                                                    seekThrottle.lastSeekTime = now
+                                                    player.seekTo(newPos)
+                                                }
+                                            }
                                         }
                                     },
-                                    onValueChangeFinished = { isSeeking = false },
+                                    onValueChangeFinished = {
+                                        if (!prefs.controlsLocked) {
+                                            endSeek()
+                                            isDragging = false
+                                            isSeeking = false
+                                        }
+                                    },
                                     valueRange = 0f..1f,
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,
@@ -1101,15 +1140,33 @@ actual fun VideoPlayerScreen(
                             }
                             else -> {
                                 Slider(
-                                    value = currentPosition.toFloat().coerceIn(0f, totalDuration.coerceAtLeast(1L).toFloat()),
+                                    value = (if (isDragging) dragPosition.toFloat() else currentPosition.toFloat())
+                                        .coerceIn(0f, totalDuration.coerceAtLeast(1L).toFloat()),
                                     valueRange = 0f..totalDuration.coerceAtLeast(1L).toFloat(),
                                     onValueChange = { value ->
                                         if (!prefs.controlsLocked) {
+                                            if (!isDragging) seekThrottle.lastSeekTime = 0L // 新拖动开始，重置节流
+                                            isDragging = true
                                             isSeeking = true
-                                            player.seekTo(value.toLong())
+                                            dragPosition = value.toLong().coerceIn(0L, totalDuration.coerceAtLeast(1L))
+                                            if (totalDuration > 0) {
+                                                // 节流：拖动时最多每 100ms seek 一次，避免每帧 seekTo 卡顿
+                                                seekThrottle.pendingPosition = dragPosition
+                                                val now = System.currentTimeMillis()
+                                                if (now - seekThrottle.lastSeekTime >= 100) {
+                                                    seekThrottle.lastSeekTime = now
+                                                    player.seekTo(dragPosition)
+                                                }
+                                            }
                                         }
                                     },
-                                    onValueChangeFinished = { isSeeking = false },
+                                    onValueChangeFinished = {
+                                        if (!prefs.controlsLocked) {
+                                            endSeek()
+                                            isDragging = false
+                                            isSeeking = false
+                                        }
+                                    },
                                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,

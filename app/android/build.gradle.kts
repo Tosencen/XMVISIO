@@ -52,10 +52,29 @@ android {
     
     signingConfigs {
         create("release") {
-            storeFile = file("${System.getProperty("user.home")}/Desktop/xmvisio-release.keystore")
-            storePassword = "***REDACTED***"
-            keyAlias = "xmvisio"
-            keyPassword = "***REDACTED***"
+            // 签名信息从 local.properties / 环境变量读取，禁止把密码提交到仓库！
+            // 配置项：signing.storeFile / signing.storePassword / signing.keyAlias / signing.keyPassword
+            storeFile = file(
+                getPropertyOrNull("signing.storeFile")
+                    ?: "${System.getProperty("user.home")}/Desktop/xmvisio-release.keystore"
+            )
+            val storePassword = getPropertyOrNull("signing.storePassword")
+            val keyAlias = getPropertyOrNull("signing.keyAlias")
+            val keyPassword = getPropertyOrNull("signing.keyPassword")
+            if (storePassword == null || keyAlias == null || keyPassword == null) {
+                logger.warn(
+                    "release 签名配置不完整：请在 local.properties 中配置 " +
+                        "signing.storePassword / signing.keyAlias / signing.keyPassword " +
+                        "（或设置同名环境变量），否则 release 构建会失败"
+                )
+            }
+            this.storePassword = storePassword ?: ""
+            this.keyAlias = keyAlias ?: "xmvisio"
+            this.keyPassword = keyPassword ?: ""
+            // 显式启用 v1 签名：保证 API 27 及以下设备能通过 GET_SIGNATURES
+            // 读取 APK 证书（配合 UpdateInstaller.verifyApkSignature 签名校验）
+            this.isV1SigningEnabled = true
+            this.isV2SigningEnabled = true
         }
     }
     

@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat as MediaNotificationCompat
@@ -87,7 +88,7 @@ class MediaNotificationManager(private val context: Context) {
         hasNext: Boolean = true,
         audioId: Long? = null
     ): Notification {
-        println("MediaNotificationManager: showNotification() - title=\"$title\", isPlaying=$isPlaying, hasPrevious=$hasPrevious, hasNext=$hasNext")
+        Log.d("MediaNotificationManager", "showNotification() - title=\"$title\", isPlaying=$isPlaying, hasPrevious=$hasPrevious, hasNext=$hasNext")
         
         val notification = buildNotification(
             title = title,

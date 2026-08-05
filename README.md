@@ -1,6 +1,6 @@
 # XMVISIO
 
-一个用 Kotlin Multiplatform + Compose Multiplatform 写的媒体播放应用，目前主要跑在 Android 上，桌面端也能编译运行。
+一个用 Kotlin Multiplatform + Compose Multiplatform 写的媒体播放应用，目前只做 Android 手机版。
 
 最初是想给自己做个干净点的本地音频播放器，慢慢加了分类、批量管理这些日常用得上的功能。
 
@@ -52,7 +52,16 @@ echo "sdk.dir=/path/to/Android/sdk" > local.properties
 ./gradlew :app:android:assembleRelease
 ```
 
-Release 包用的签名密钥不在仓库里，构建脚本默认从 `~/Desktop/xmvisio-release.keystore` 读取。如果你自己 fork，改成你自己的 keystore 即可。
+Release 包用的签名密钥不在仓库里。签名信息从 `local.properties`（已被 .gitignore 排除）或环境变量读取：
+
+```properties
+signing.storeFile=/path/to/your.keystore
+signing.storePassword=xxx
+signing.keyAlias=xxx
+signing.keyPassword=xxx
+```
+
+未配置 `signing.storeFile` 时默认使用 `~/Desktop/xmvisio-release.keystore`。**不要把密码写进 `build.gradle.kts` 或任何会提交的文件里。**
 
 ## 目录结构
 
@@ -60,13 +69,14 @@ Release 包用的签名密钥不在仓库里，构建脚本默认从 `~/Desktop/
 XMVISIO/
 ├── app/
 │   ├── shared/     # 共享的 UI 和业务逻辑，主要代码都在这
-│   ├── android/    # Android 入口
-│   └── desktop/    # 桌面端入口
+│   └── android/    # Android 入口
 ├── core/utils/     # 一些通用工具
 └── buildSrc/       # 构建相关配置
 ```
 
 只打包了 arm64-v8a，别的架构需要的话自己在 `app/android/build.gradle.kts` 里改 `abiFilters`。
+
+> 桌面版已于 2026-08 移除，不再维护。
 
 ## 许可证
 

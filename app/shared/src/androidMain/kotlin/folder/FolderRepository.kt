@@ -7,6 +7,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import androidx.sqlite.execSQL
+import com.xmvisio.app.data.AppDatabase
 import com.xmvisio.app.data.Folder
 import com.xmvisio.app.data.FolderType
 import com.xmvisio.app.data.MediaFolder
@@ -21,9 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.io.File
 
 /**
@@ -32,8 +31,9 @@ import java.io.File
  */
 class FolderRepository(private val context: Context) {
 
+    // view_mode 等标量偏好仍用 SharedPreferences；列表数据（文件夹/扫描路径）存 SQLite
     private val prefs = context.getSharedPreferences("media_folders", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true }
+    private val db get() = AppDatabase.getInstance(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _folders = MutableStateFlow<List<MediaFolder>>(emptyList())
@@ -51,8 +51,6 @@ class FolderRepository(private val context: Context) {
     val mediaChangeTrigger: StateFlow<Long> = _mediaChangeTrigger.asStateFlow()
 
     companion object {
-        private const val KEY_FOLDERS = "folders"
-        private const val KEY_SCAN_PATHS = "scan_paths"
         private const val KEY_VIEW_MODE = "view_mode"
 
         @Volatile
@@ -261,31 +259,76 @@ class FolderRepository(private val context: Context) {
     // ==================== 持久化 ====================
 
     private fun loadFolders() {
-        val foldersJson = prefs.getString(KEY_FOLDERS, null) ?: return
-        try {
-            _folders.value = json.decodeFromString(foldersJson)
-        } catch (e: Exception) {
-            _folders.value = emptyList()
+        _folders.value = db.withConnection { conn ->
+            conn.prepare(
+                "SELECT id, name, path, COALESCE(parent_path, ''), type, sort_order, created_at " +
+                    "FROM folders ORDER BY sort_order"
+            ).use { stmt ->
+                buildList {
+                    while (stmt.step()) {
+                        val parent = stmt.getText(3)
+                        add(
+                            MediaFolder(
+                                id = stmt.getText(0),
+                                name = stmt.getText(1),
+                                path = stmt.getText(2),
+                                parentPath = parent.ifEmpty { null },
+                                type = FolderType.valueOf(stmt.getText(4)),
+                                sortOrder = stmt.getLong(5).toInt(),
+                                createdAt = stmt.getLong(6)
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 
     private fun saveFolders(folders: List<MediaFolder>) {
-        val foldersJson = json.encodeToString(folders)
-        prefs.edit().putString(KEY_FOLDERS, foldersJson).apply()
+        db.inTransaction { conn ->
+            conn.execSQL("DELETE FROM folders")
+            conn.prepare(
+                "INSERT INTO folders (id, name, path, parent_path, type, sort_order, created_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)"
+            ).use { stmt ->
+                folders.forEach { f ->
+                    stmt.bindText(1, f.id)
+                    stmt.bindText(2, f.name)
+                    stmt.bindText(3, f.path)
+                    if (f.parentPath != null) stmt.bindText(4, f.parentPath) else stmt.bindNull(4)
+                    stmt.bindText(5, f.type.name)
+                    stmt.bindLong(6, f.sortOrder.toLong())
+                    stmt.bindLong(7, f.createdAt)
+                    stmt.step()
+                    stmt.reset()
+                }
+            }
+        }
     }
 
     private fun loadScanPaths() {
-        val pathsJson = prefs.getString(KEY_SCAN_PATHS, null) ?: return
-        try {
-            _scanPaths.value = json.decodeFromString(pathsJson)
-        } catch (e: Exception) {
-            _scanPaths.value = emptyList()
+        _scanPaths.value = db.withConnection { conn ->
+            conn.prepare("SELECT path FROM scan_paths").use { stmt ->
+                buildList {
+                    while (stmt.step()) {
+                        add(stmt.getText(0))
+                    }
+                }
+            }
         }
     }
 
     private fun saveScanPaths(paths: List<String>) {
-        val pathsJson = json.encodeToString(paths)
-        prefs.edit().putString(KEY_SCAN_PATHS, pathsJson).apply()
+        db.inTransaction { conn ->
+            conn.execSQL("DELETE FROM scan_paths")
+            conn.prepare("INSERT INTO scan_paths (path) VALUES (?)").use { stmt ->
+                paths.forEach { p ->
+                    stmt.bindText(1, p)
+                    stmt.step()
+                    stmt.reset()
+                }
+            }
+        }
     }
 
     private fun loadViewMode() {

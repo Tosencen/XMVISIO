@@ -82,6 +82,9 @@ kotlin {
             // Lottie - 动画
             implementation(libs.lottie)
 
+            // SQLite（取代 SharedPreferences JSON 列表存储，支持 schema 迁移）
+            implementation(libs.sqlite.bundled)
+
             // ===== 下载功能已暂时禁用 =====
             // YoutubeDL Android (Seal's fork) - 视频/音频下载
             // implementation(libs.youtubedl.android.library)
@@ -90,6 +93,20 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+            }
+        }
+
+        val androidInstrumentedTest by getting {
+            dependencies {
+                // Compose UI 测试（instrumented，跑在模拟器/真机上）
+                implementation(libs.androidx.compose.ui.test.junit4)
+                // JUnit5 runner/API 由 de.mannodermaus.android-junit5 插件注入，这里不显式声明，
+                // 避免与插件版本（1.11.2.0）的运行时不一致。
+                // Vintage engine：让 AndroidJUnit5Builder 也能发现并运行 JUnit4 测试（ComposeTestRule 是 JUnit4 rule）
+                implementation(libs.junit5.vintage.engine)
+                // 强制升级 espresso（见 libs.versions.toml 注释）：旧版 InputManagerEventInjectionStrategy
+                // 调用已移除的 InputManager.getInstance()，在 Android 17 (API 36) 上崩溃
+                implementation(libs.androidx.test.espresso.core)
             }
         }
         
