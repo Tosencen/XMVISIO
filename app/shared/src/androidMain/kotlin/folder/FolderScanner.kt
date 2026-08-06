@@ -63,6 +63,8 @@ class FolderScanner(private val context: Context) {
                 MediaStore.Video.Media.DURATION,
                 MediaStore.Video.Media.SIZE,
                 MediaStore.Video.Media.DATE_MODIFIED,
+                MediaStore.Video.Media.WIDTH,
+                MediaStore.Video.Media.HEIGHT,
             ),
             mapper = { cursor ->
                 val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID))
@@ -71,6 +73,8 @@ class FolderScanner(private val context: Context) {
                 val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION))
                 val size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE))
                 val dateModified = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED))
+                val width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)).takeIf { it > 0 } ?: 0
+                val height = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)).takeIf { it > 0 } ?: 0
                 val uri = ContentUris.withAppendedId(
                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id
                 ).toString()
@@ -82,7 +86,9 @@ class FolderScanner(private val context: Context) {
                     duration = duration,
                     size = size,
                     dateModified = dateModified,
-                    path = path
+                    path = path,
+                    width = width,
+                    height = height
                 )
             }
         )

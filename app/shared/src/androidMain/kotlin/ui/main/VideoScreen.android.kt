@@ -926,7 +926,7 @@ private fun VideoListItem(
 
     LaunchedEffect(video.id) {
         withContext(Dispatchers.IO) {
-            thumbnailBitmap = loadVideoThumbnail(context, video.id)
+            thumbnailBitmap = loadVideoThumbnail(context, video)
         }
     }
 
@@ -961,7 +961,18 @@ private fun VideoListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = video.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = video.formattedDuration, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val meta = buildString {
+                    append(video.formattedDuration)
+                    if (video.size > 0) {
+                        if (isNotEmpty()) append(" · ")
+                        append(formatFileSize(video.size))
+                    }
+                    if (video.formattedResolution.isNotEmpty()) {
+                        if (isNotEmpty()) append(" · ")
+                        append(video.formattedResolution)
+                    }
+                }
+                Text(text = meta, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -978,7 +989,7 @@ private fun VideoCard(
 
     LaunchedEffect(video.id) {
         withContext(Dispatchers.IO) {
-            thumbnailBitmap = loadVideoThumbnail(context, video.id)
+            thumbnailBitmap = loadVideoThumbnail(context, video)
         }
     }
 
@@ -1012,7 +1023,20 @@ private fun VideoCard(
                 Text(text = video.formattedDuration, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
         }
-        Text(text = video.name, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Text(text = video.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+            val meta = buildString {
+                if (video.size > 0) append(formatFileSize(video.size))
+                if (video.formattedResolution.isNotEmpty()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(video.formattedResolution)
+                }
+            }
+            if (meta.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = meta, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 

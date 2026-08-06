@@ -1,7 +1,6 @@
 package com.xmvisio.app.ui.folder
 
 import android.graphics.Bitmap
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,6 +34,8 @@ import com.xmvisio.app.audio.LocalAudioFile
 import com.xmvisio.app.data.Folder
 import com.xmvisio.app.data.MediaHolder
 import com.xmvisio.app.data.VideoInfo
+import com.xmvisio.app.ui.main.formatFileSize
+import com.xmvisio.app.ui.main.loadVideoThumbnail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -330,6 +331,10 @@ private fun FolderGridCard(
                     if (isNotEmpty()) append(", ")
                     append("${folder.foldersCount} 文件夹")
                 }
+                if (folder.totalSize > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append(formatFileSize(folder.totalSize))
+                }
             }
             if (stats.isNotEmpty()) {
                 Text(
@@ -406,6 +411,10 @@ private fun FolderListCard(
                         if (isNotEmpty()) append(", ")
                         append("${folder.foldersCount} 个子文件夹")
                     }
+                    if (folder.totalSize > 0) {
+                        if (isNotEmpty()) append(" · ")
+                        append(formatFileSize(folder.totalSize))
+                    }
                 }
                 if (stats.isNotEmpty()) {
                     Text(
@@ -431,22 +440,7 @@ private fun VideoGridCard(
 
     LaunchedEffect(video.id) {
         withContext(Dispatchers.IO) {
-            try {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    val uri = android.net.Uri.parse(video.uri)
-                    thumbnail = context.contentResolver.loadThumbnail(
-                        uri, android.util.Size(512, 384), null
-                    )
-                } else {
-                    @Suppress("DEPRECATION")
-                    thumbnail = android.provider.MediaStore.Video.Thumbnails.getThumbnail(
-                        context.contentResolver, video.id,
-                        android.provider.MediaStore.Video.Thumbnails.MINI_KIND, null
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w("MediaView", "加载视频缩略图失败", e)
-            }
+            thumbnail = loadVideoThumbnail(context, video)
         }
     }
 
@@ -512,6 +506,22 @@ private fun VideoGridCard(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
+            val meta = buildString {
+                if (video.size > 0) append(formatFileSize(video.size))
+                if (video.formattedResolution.isNotEmpty()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(video.formattedResolution)
+                }
+            }
+            if (meta.isNotEmpty()) {
+                Text(
+                    text = meta,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -528,22 +538,7 @@ private fun VideoListCard(
 
     LaunchedEffect(video.id) {
         withContext(Dispatchers.IO) {
-            try {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    val uri = android.net.Uri.parse(video.uri)
-                    thumbnail = context.contentResolver.loadThumbnail(
-                        uri, android.util.Size(512, 384), null
-                    )
-                } else {
-                    @Suppress("DEPRECATION")
-                    thumbnail = android.provider.MediaStore.Video.Thumbnails.getThumbnail(
-                        context.contentResolver, video.id,
-                        android.provider.MediaStore.Video.Thumbnails.MINI_KIND, null
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w("MediaView", "加载视频缩略图失败", e)
-            }
+            thumbnail = loadVideoThumbnail(context, video)
         }
     }
 
@@ -609,6 +604,23 @@ private fun VideoListCard(
                     style = MaterialTheme.typography.titleSmall,
                     overflow = TextOverflow.Ellipsis
                 )
+                val meta = buildString {
+                    if (video.size > 0) append(formatFileSize(video.size))
+                    if (video.formattedResolution.isNotEmpty()) {
+                        if (isNotEmpty()) append(" · ")
+                        append(video.formattedResolution)
+                    }
+                }
+                if (meta.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = meta,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

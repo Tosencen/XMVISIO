@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -482,6 +483,8 @@ internal suspend fun queryVideos(context: Context): List<VideoInfo> = withContex
         MediaStore.Video.Media.SIZE,
         MediaStore.Video.Media.DATE_MODIFIED,
         MediaStore.Video.Media.DATA,
+        MediaStore.Video.Media.WIDTH,
+        MediaStore.Video.Media.HEIGHT,
     )
     val sortOrder = "${MediaStore.Video.Media.DATE_MODIFIED} DESC"
 
@@ -494,6 +497,8 @@ internal suspend fun queryVideos(context: Context): List<VideoInfo> = withContex
         val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
         val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
         val pathIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+        val widthIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+        val heightIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
 
         while (cursor.moveToNext()) {
             val id = cursor.getLong(idIndex)
@@ -505,27 +510,57 @@ internal suspend fun queryVideos(context: Context): List<VideoInfo> = withContex
             val uri = ContentUris.withAppendedId(
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id
             ).toString()
+            val width = cursor.getInt(widthIndex).takeIf { it > 0 } ?: 0
+            val height = cursor.getInt(heightIndex).takeIf { it > 0 } ?: 0
 
-            videos.add(VideoInfo(id = id, uri = uri, name = name, duration = duration, size = size, dateModified = dateModified, path = path))
+            videos.add(VideoInfo(id = id, uri = uri, name = name, duration = duration, size = size, dateModified = dateModified, path = path, width = width, height = height))
         }
     }
     videos
 }
 
+/** 缩略图内存缓存：滚动列表反复进出组合时避免重复解码中间帧（解码比系统缩略图重） */
+private val thumbnailCache = object {
+    private val cache = androidx.collection.LruCache<Long, Bitmap>(64)
+    fun get(videoId: Long): Bitmap? = cache.get(videoId)
+    fun put(videoId: Long, bitmap: Bitmap) { cache.put(videoId, bitmap) }
+}
+
 /**
- * 加载视频缩略图
+ * 加载视频缩略图：取视频中间一帧（比系统缩略图更像封面，避免开头黑屏/标题帧）
  */
-internal suspend fun loadVideoThumbnail(context: Context, videoId: Long): Bitmap? = withContext(Dispatchers.IO) {
+internal suspend fun loadVideoThumbnail(context: Context, video: VideoInfo): Bitmap? = withContext(Dispatchers.IO) {
+    thumbnailCache.get(video.id)?.let { return@withContext it }
     try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, videoId)
-            context.contentResolver.loadThumbnail(uri, android.util.Size(512, 384), null)
-        } else {
-            @Suppress("DEPRECATION")
-            MediaStore.Video.Thumbnails.getThumbnail(
-                context.contentResolver, videoId,
-                MediaStore.Video.Thumbnails.MINI_KIND, null
-            )
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, Uri.parse(video.uri))
+            // 时长（毫秒）→ 中间帧时间（微秒）
+            val durationMs = retriever
+                .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?: video.duration
+            val timeUs = (durationMs.coerceAtLeast(0L) * 1000L) / 2
+            val frame = retriever.getFrameAtTime(
+                timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            ) ?: retriever.getFrameAtTime(0) ?: return@withContext null
+            // 缩放到宽度不超过 512，避免列表页大图内存开销
+            val targetWidth = 512
+            val result = if (frame.width <= targetWidth) {
+                frame
+            } else {
+                val scale = targetWidth.toFloat() / frame.width
+                Bitmap.createScaledBitmap(
+                    frame,
+                    targetWidth,
+                    (frame.height * scale).toInt(),
+                    true
+                ).also { if (it !== frame) frame.recycle() }
+            }
+            thumbnailCache.put(video.id, result)
+            result
+        } finally {
+            runCatching { retriever.release() }
         }
     } catch (_: Exception) { null }
 }

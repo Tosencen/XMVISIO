@@ -69,8 +69,8 @@ Pods/
 *.rej
 *.bak
 
-# ===== Project data（本地运行数据，不提交）=====
-data/
+# ===== Project data（本地运行数据，不提交；仅根目录，避免误伤源码包名含 data 的目录）=====
+/data/
 androidx/
 .codebuddy/
 .freebuff/
