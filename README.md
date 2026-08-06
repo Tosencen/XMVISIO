@@ -22,15 +22,15 @@
 ## 截图
 
 <div align="center">
-  <img src="screenshots/1.jpg" width="200" alt="主界面" />
-  <img src="screenshots/2.jpg" width="200" alt="批量选择" />
-  <img src="screenshots/3.jpg" width="200" alt="批量操作" />
+  <img src="screenshots/audio-home.jpg" width="200" alt="主界面" />
+  <img src="screenshots/batch-select.jpg" width="200" alt="批量选择" />
+  <img src="screenshots/batch-actions.jpg" width="200" alt="批量操作" />
 </div>
 
 <div align="center">
-  <img src="screenshots/4.jpg" width="200" alt="分类管理" />
-  <img src="screenshots/5.jpg" width="200" alt="播放界面" />
-  <img src="screenshots/6.jpg" width="200" alt="设置" />
+  <img src="screenshots/category-manage.jpg" width="200" alt="分类管理" />
+  <img src="screenshots/player.jpg" width="200" alt="播放界面" />
+  <img src="screenshots/settings.jpg" width="200" alt="设置" />
 </div>
 
 ## 开发环境
