@@ -62,6 +62,33 @@ class CacheLogicTest {
     }
 
     @Test
+    fun `counts key includes category set - categories expanding without version change reloads`() = runBlocking {
+        // 模拟启动竞态：首次组合时 categories 还是 [ALL]（只有内置分类），
+        // 扫描完成后 categories 扩展为 [ALL, TestCat]，但 mappingVersion 未变（仍为 0）。
+        // 若版本键只含 mappingVersion，空计数会被缓存锁定，文件夹计数永远为 0。
+        val countsBySet = mapOf(
+            setOf("all") to emptyMap<String, Int>(),
+            setOf("all", "cat_1") to mapOf("cat_1" to 2)
+        )
+        var currentCategoryIds = setOf("all")
+        val cache = VersionedCache<Map<String, Int>> { countsBySet.getValue(currentCategoryIds) }
+
+        // 首次组合：categories = [ALL] → 缓存空计数
+        assertEquals(emptyMap<String, Int>(), cache.get(0 to currentCategoryIds))
+
+        // 扫描完成：categories 扩展但 version 仍是 0 → 版本键必须变化并重新加载
+        currentCategoryIds = setOf("all", "cat_1")
+        assertTrue(
+            cache.needLoad(0 to currentCategoryIds),
+            "categories 集合变化但 mappingVersion 未变时也必须重查，否则文件夹计数永远为 0"
+        )
+        assertEquals(mapOf("cat_1" to 2), cache.get(0 to currentCategoryIds))
+
+        // 同集合再取 → 复用缓存
+        assertFalse(cache.needLoad(0 to currentCategoryIds))
+    }
+
+    @Test
     fun `counts scenario - move audio then reopen folder refreshes counts`() = runBlocking {
         // 模拟分类计数：以 mappingVersion 为 key，数据源随版本变化
         val countsByVersion = mapOf(

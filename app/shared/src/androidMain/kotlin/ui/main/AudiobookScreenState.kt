@@ -105,7 +105,12 @@ class AudiobookScreenState(context: Context) : ViewModel() {
     var currentPageAudioList by mutableStateOf<List<LocalAudioFile>>(emptyList())
 
     // ===== 文件夹计数缓存（ViewModel 持有，避免每次进入文件夹主页都查 DB）=====
-    // 版本键逻辑见 CacheLogic.kt 的 VersionedCache：仅版本变化时才重查 DB。
+    // 版本键逻辑见 CacheLogic.kt 的 VersionedCache。
+    // 版本键 = mappingVersion + categories 的 ID 集合：
+    //  - 映射变化（音频移入/移出/删除，mappingVersion++）→ 重查
+    //  - 分类集合变化（首次扫描 categories 从 [ALL] 扩展为真实列表）→ 重查
+    //    否则会出现「首次组合时 categories 尚为 [ALL]，空计数被缓存且 mappingVersion
+    //    未变 → 缓存永不失效 → 文件夹计数永远为 0」的启动竞态。
     var categoryCounts by mutableStateOf<Map<String, Int>>(emptyMap())
     private val categoryCountsCache = VersionedCache<Map<String, Int>> {
         val counts = mutableMapOf<String, Int>()
@@ -115,13 +120,19 @@ class AudiobookScreenState(context: Context) : ViewModel() {
         counts
     }
 
+    /** 计数版本键：mappingVersion + 分类 ID 集合（顺序无关） */
+    private val categoryCountsKey: Pair<Int, Set<String>>
+        get() = categoryMappingVersion to categories.map { it.id }.toSet()
+
     /**
-     * 加载/刷新各分类的音频计数。仅在分类或映射变化（version 变化）时重新查询 DB。
+     * 加载/刷新各分类的音频计数。
+     * 仅在分类或映射变化（版本键变化）时重新查询 DB；categories 集合首次就绪后也会重查。
      */
     fun ensureCategoryCountsLoaded() {
-        if (categoryCountsCache.needLoad(categoryMappingVersion)) {
+        val key = categoryCountsKey
+        if (categoryCountsCache.needLoad(key)) {
             viewModelScope.launch {
-                categoryCounts = categoryCountsCache.get(categoryMappingVersion)
+                categoryCounts = categoryCountsCache.get(key)
             }
         }
     }
