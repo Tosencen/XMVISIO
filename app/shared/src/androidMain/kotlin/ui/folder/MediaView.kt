@@ -296,10 +296,10 @@ private fun FolderGridCard(
                     .width(min(90.dp, LocalConfiguration.current.screenWidthDp.dp * 0.3f))
                     .aspectRatio(20 / 17f),
             )
-            val durationText = formatDuration(folder.totalDuration)
-            if (durationText.isNotEmpty()) {
+            // 总时长角标：仅在总时长为 0（未知/仅含子文件夹）时隐藏，避免误显示 00:00
+            if (folder.totalDuration > 0) {
                 Text(
-                    text = durationText,
+                    text = formatDuration(folder.totalDuration),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Normal),
                     color = Color.White,
                     modifier = Modifier
@@ -367,14 +367,31 @@ private fun FolderListCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                painter = folderPainter(),
-                contentDescription = null,
-                modifier = Modifier
-                    .width(min(90.dp, LocalConfiguration.current.screenWidthDp.dp * 0.3f))
-                    .aspectRatio(20f / 17f),
-                tint = MaterialTheme.colorScheme.surfaceContainerHigh
-            )
+            // 文件夹图标 + 总时长角标（与网格布局一致）
+            Box {
+                Icon(
+                    painter = folderPainter(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .width(min(90.dp, LocalConfiguration.current.screenWidthDp.dp * 0.3f))
+                        .aspectRatio(20f / 17f),
+                    tint = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+                if (folder.totalDuration > 0) {
+                    Text(
+                        text = formatDuration(folder.totalDuration),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Normal),
+                        color = Color.White,
+                        modifier = Modifier
+                            .padding(5.dp)
+                            .padding(bottom = 3.dp)
+                            .align(Alignment.BottomEnd)
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .padding(vertical = 1.dp, horizontal = 3.dp),
+                    )
+                }
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = folder.name,
