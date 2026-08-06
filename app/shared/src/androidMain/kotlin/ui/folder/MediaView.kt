@@ -292,7 +292,7 @@ private fun FolderGridCard(
             Icon(
                 painter = folderPainter(),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .width(min(90.dp, LocalConfiguration.current.screenWidthDp.dp * 0.3f))
                     .aspectRatio(20 / 17f),
@@ -380,7 +380,7 @@ private fun FolderListCard(
                     modifier = Modifier
                         .width(min(90.dp, LocalConfiguration.current.screenWidthDp.dp * 0.3f))
                         .aspectRatio(20f / 17f),
-                    tint = MaterialTheme.colorScheme.surfaceContainerHigh
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 if (folder.totalDuration > 0) {
                     Text(

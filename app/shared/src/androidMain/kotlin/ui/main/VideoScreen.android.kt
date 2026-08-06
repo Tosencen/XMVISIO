@@ -140,10 +140,11 @@ actual fun VideoScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = when (state.viewMode) {
-                                0 -> "视频"
-                                1 -> "文件夹"
-                                else -> "全部视频"
+                            text = when {
+                                // 「全部」模式显示模式名；文件夹/树形模式下显示当前所在文件夹名，根级显示「视频」
+                                state.viewMode == 2 -> "全部视频"
+                                state.currentFolderPath != null -> java.io.File(state.currentFolderPath).name
+                                else -> "视频"
                             }
                         )
                         if (updateAvailable) {

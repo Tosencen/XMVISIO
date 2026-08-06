@@ -774,7 +774,7 @@ private fun AudioCategoryFolderCard(name: String, count: Int, isAll: Boolean, on
     ) {
         Box {
             Icon(painter = folderPainterForAudio(), contentDescription = null,
-                tint = if (count < 0) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                tint = if (count < 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.width(90.dp).aspectRatio(20 / 17f))
             if (isAll) Text("全部", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp))
             if (count < 0) Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp).align(Alignment.Center).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).padding(4.dp))
@@ -788,7 +788,7 @@ private fun AudioCategoryFolderCard(name: String, count: Int, isAll: Boolean, on
 private fun AudioCategoryFolderRow(name: String, count: Int, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(painter = folderPainterForAudio(), contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.surfaceContainerHigh)
+            Icon(painter = folderPainterForAudio(), contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
             Column(Modifier.weight(1f)) {
                 Text(name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 if (count >= 0) Text("$count 个音频", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
